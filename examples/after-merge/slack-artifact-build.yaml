@@ -1,0 +1,87 @@
+name: Notify Slack Channel - Artifact Build
+on:
+  workflow_dispatch:
+    inputs:
+      channel_id:
+        description: "Slack channel ID to send notification to"
+        required: true
+        type: string
+      artifact_name:
+        description: "Name of the artifact"
+        required: false
+        default: "foo"
+        type: string
+      artifact_url:
+        description: "URL to the artifact"
+        required: false
+        default: "www.foo.com"
+        type: string
+      git_hash:
+        description: "Git commit hash for testing"
+        required: false
+        default: "asdfasdf"
+        type: string
+      tag:
+        description: "Git tag for testing"
+        required: false
+        default: "1.1.0"
+        type: string
+      simulate_status:
+        description: "Simulate a specific build status"
+        required: false
+        default: "success"
+        type: choice
+        options:
+          - success
+          - failure
+          - cancelled
+
+jobs:
+  determine-status:
+    runs-on: self-hosted
+    outputs:
+      status: ${{ steps.check-status.outputs.status }}
+      build_time: ${{ steps.check-status.outputs.build_time }}
+    steps:
+      - name: Check status and set outputs
+        id: check-status
+        run: |
+          # Generate build time
+          echo "build_time=$(date +%s)" >> $GITHUB_OUTPUT
+
+          # Determine status (in a real workflow, this would be based on actual build results)
+          # For this example, we'll use the input parameter
+          STATUS="${{ github.event.inputs.simulate_status }}"
+
+          # Log what we're doing
+          echo "Determining build status: $STATUS"
+
+          # Set the status output
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+
+          # Simulate actual job behavior based on status
+          if [[ "$STATUS" == "failure" ]]; then
+            echo "Build status indicates a failure!"
+            # In a real job, we'd probably exit with an error here
+            # But for demo purposes, we want the next job to run
+          elif [[ "$STATUS" == "cancelled" ]]; then
+            echo "Build status indicates cancellation!"
+          else
+            echo "Build status indicates success!"
+          fi
+
+  send-slack-message:
+    needs: determine-status
+    uses: lowranceworks/common-workflows/.github/workflows/slack-artifact-build.yaml@main
+    with:
+      channel-id: ${{ inputs.channel_id }}
+      status: ${{ needs.determine-status.outputs.status }}
+      artifact_name: ${{ github.event.inputs.artifact_name }}
+      artifact_url: ${{ github.event.inputs.artifact_url }}
+      git_hash: ${{ github.event.inputs.git_hash }}
+      tag: ${{ github.event.inputs.tag }}
+      build_time: ${{ needs.determine-status.outputs.build_time }}
+      include_timestamp: true
+      include_repository: true
+    secrets:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}

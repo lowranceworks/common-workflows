@@ -1,0 +1,82 @@
+name: Notify Slack Channel - Deployment
+on:
+  workflow_dispatch:
+    inputs:
+      channel_id:
+        description: "slack channel id to send notification to"
+        required: true
+        type: string
+      environment:
+        description: "deployment environment"
+        required: false
+        default: "qa"
+        type: choice
+        options:
+          - dev
+          - qa
+          - uat-usa
+          - uat-emea
+          - prod-usa
+          - prod-emea
+      git_hash:
+        description: "git commit hash for testing"
+        required: false
+        default: "asdfasdf"
+        type: string
+      tag:
+        description: "git tag for testing"
+        required: false
+        default: "1.1.0"
+        type: string
+      simulate_status:
+        description: "simulate a specific deployment status"
+        required: false
+        default: "success"
+        type: choice
+        options:
+          - success
+          - failure
+          - cancelled
+jobs:
+  determine-deployment-status:
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.check-deployment.outputs.status }}
+      deployment_time: ${{ steps.check-deployment.outputs.deployment_time }}
+    steps:
+      - name: check deployment status and set outputs
+        id: check-deployment
+        run: |
+          # generate deployment timestamp
+          echo "deployment_time=$(date +%s)" >> $github_output
+          # determine status (in a real workflow, this would check actual deployment results)
+          # for this example, we'll use the input parameter
+          status="${{ github.event.inputs.simulate_status }}"
+          # log what we're doing
+          echo "checking deployment status for ${{ github.event.inputs.environment }} environment: $status"
+          # set the status output
+          echo "status=$status" >> $github_output
+          # simulate actual deployment behavior based on status
+          if [[ "$status" == "failure" ]]; then
+            echo "deployment failed to ${{ github.event.inputs.environment }}!"
+            # in a real job, we'd probably exit with an error here
+            # but for demo purposes, we want the next job to run
+          elif [[ "$status" == "cancelled" ]]; then
+            echo "deployment to ${{ github.event.inputs.environment }} was cancelled!"
+          else
+            echo "deployment to ${{ github.event.inputs.environment }} completed successfully!"
+          fi
+  send-slack-notification:
+    needs: determine-deployment-status
+    uses: lowranceworks/common-workflows/.github/workflows/slack-deployment.yaml@main
+    with:
+      channel_id: ${{ github.event.inputs.channel_id }}
+      status: ${{ needs.determine-deployment-status.outputs.status }}
+      git_hash: ${{ github.event.inputs.git_hash }}
+      tag: ${{ github.event.inputs.tag }}
+      environment: ${{ github.event.inputs.environment }}
+      deployment_time: ${{ needs.determine-deployment-status.outputs.deployment_time }}
+      include_timestamp: true
+      include_repository: true
+    secrets:
+      slack_bot_token: ${{ secrets.slack_bot_token }}

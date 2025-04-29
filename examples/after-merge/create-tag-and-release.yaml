@@ -1,0 +1,11 @@
+name: Create Tag and Release
+on:
+  pull_request:
+    types: [closed]
+jobs:
+  create-release:
+    uses: lowranceworks/common-workflows/.github/workflows/create-tag-and-release.yaml@main
+    permissions:
+      contents: write
+      pull-requests: read
+      issues: read

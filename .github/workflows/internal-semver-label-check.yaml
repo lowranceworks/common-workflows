@@ -1,0 +1,14 @@
+name: Internal Semver Label Check
+
+on:
+  pull_request:
+    types: [opened, labeled, unlabeled, synchronize]
+
+jobs:
+  check-version:
+    uses: lowranceworks/common-workflows/.github/workflows/semver-label-check.yaml@main
+    permissions:
+      issues: write
+      pull-requests: write
+      contents: read
+    secrets: inherit

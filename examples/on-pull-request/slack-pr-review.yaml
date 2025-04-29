@@ -1,0 +1,16 @@
+name: Notify Slack Channel - Pull Request Review
+
+on:
+  pull_request:
+    types: [opened, review_requested, ready_for_review]
+
+jobs:
+  send-slack-notification-pull-request:
+    name: Notify Software Engineering Team for PR Review
+    uses: lowranceworks/common-workflows/.github/workflows/slack-pr-review.yaml@main
+    with:
+      team-slug: "swe"
+      team-display-name: "software-engineering-team"
+      slack-channel-id: ${{ vars.SLACK_CHANNEL_ID }}
+    secrets:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
