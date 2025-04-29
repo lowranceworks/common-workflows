@@ -1,0 +1,16 @@
+name: Send Slack Notification to DevOps team
+
+on:
+  pull_request:
+    types: [opened, review_requested, ready_for_review]
+
+jobs:
+  send-slack-notification-pull-request:
+    name: Notify DevOps team about PR
+    uses: lowranceworks/common-workflows/.github/workflows/notifications/slack-pull-request-review-needed.yaml@main
+    with:
+      team-slug: "devops"
+      team-display-name: "devops-team"
+      slack-channel-id: ${{ secrets.DEVOPS_TEAM_SLACK_CHANNEL_ID }}
+    secrets:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}

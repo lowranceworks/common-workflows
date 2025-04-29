@@ -1,0 +1,153 @@
+name: Notify Slack channel for Pull Request
+
+on:
+  workflow_call:
+    inputs:
+      team-slug:
+        description: "The GitHub team slug to check for (e.g., devops)"
+        required: true
+        type: string
+      team-display-name:
+        description: "The display name of the team for notifications (if not provided, team-slug will be used)"
+        required: false
+        type: string
+      event-type:
+        description: "Type of event (PR, Issue, etc.)"
+        required: false
+        type: string
+    secrets:
+      SLACK_BOT_TOKEN:
+        description: "Slack bot token with chat:write scope"
+        required: true
+      SLACK_CHANNEL_ID:
+        description: "The Slack channel ID to post to"
+        required: true
+
+  # Allow direct triggering as well
+  pull_request:
+    types: [opened, review_requested, ready_for_review]
+
+jobs:
+  process-and-notify:
+    name: Check Team Review & Notify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determine team slug
+        id: determine_team
+        run: |
+          # Use input parameter if workflow was called, otherwise default to devops
+          if [[ "${{ github.event_name }}" == "workflow_call" ]]; then
+            TEAM_SLUG="${{ inputs.team-slug }}"
+          else
+            TEAM_SLUG="devops"
+          fi
+          echo "team_slug=$TEAM_SLUG" >> $GITHUB_OUTPUT
+
+          # Set display name (use input or use team slug if not provided)
+          if [[ "${{ github.event_name }}" == "workflow_call" && "${{ inputs.team-display-name }}" != "" ]]; then
+            DISPLAY_NAME="${{ inputs.team-display-name }}"
+          else
+            # Just use the team slug directly without auto-capitalizing
+            DISPLAY_NAME="$TEAM_SLUG"
+          fi
+          echo "display_name=$DISPLAY_NAME" >> $GITHUB_OUTPUT
+
+      - name: Check if team is requested
+        id: check_team
+        run: |
+          TEAM_SLUG="${{ steps.determine_team.outputs.team_slug }}"
+
+          if jq --arg team "$TEAM_SLUG" '.pull_request.requested_teams[] | select(.slug == $team)' $GITHUB_EVENT_PATH -e > /dev/null; then
+            echo "is_team_requested=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_team_requested=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Prepare PR data
+        id: prepare_data
+        if: steps.check_team.outputs.is_team_requested == 'true'
+        run: |
+          PR_TITLE=$(jq -r '.pull_request.title' $GITHUB_EVENT_PATH)
+          PR_AUTHOR=$(jq -r '.pull_request.user.login' $GITHUB_EVENT_PATH)
+          PR_URL=$(jq -r '.pull_request.html_url' $GITHUB_EVENT_PATH)
+          PR_BODY=$(jq -r '.pull_request.body' $GITHUB_EVENT_PATH)
+          PR_NUMBER=$(jq -r '.pull_request.number' $GITHUB_EVENT_PATH)
+          REPO=$(jq -r '.repository.full_name' $GITHUB_EVENT_PATH)
+
+          # Build the formatted message
+          MESSAGE="*<$PR_URL|#$PR_NUMBER: $PR_TITLE>*\n\nRepository: $REPO\n\n"
+
+          if [[ "$PR_BODY" != "null" && "$PR_BODY" != "" ]]; then
+            # Truncate body if longer than 300 chars
+            if [[ ${#PR_BODY} -gt 300 ]]; then
+              PR_BODY="${PR_BODY:0:297}..."
+            fi
+            # Replace newlines with spaces to avoid JSON issues
+            PR_BODY=$(echo "$PR_BODY" | tr '\n' ' ')
+            MESSAGE="$MESSAGE$PR_BODY"
+          else
+            MESSAGE="$MESSAGE*No description provided*"
+          fi
+
+          # Set outputs for use in the Slack notification
+          echo "pr_title=$PR_TITLE" >> $GITHUB_OUTPUT
+          echo "pr_author=$PR_AUTHOR" >> $GITHUB_OUTPUT
+          echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
+          echo "pr_message=$MESSAGE" >> $GITHUB_OUTPUT
+
+      - name: Send message to Slack
+        id: slack
+        if: steps.check_team.outputs.is_team_requested == 'true'
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
+          payload: |
+            {
+              "text": "🔔 ${{ inputs.event-type || 'Pull Request' }} from ${{ steps.prepare_data.outputs.pr_author }} needs attention from ${{ steps.determine_team.outputs.display_name }} team",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "🔔 ${{ inputs.event-type || 'Pull Request' }} Needs Review - ${{ steps.determine_team.outputs.display_name }} Team",
+                    "emoji": true
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Title:*\n${{ steps.prepare_data.outputs.pr_title }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Created by:*\n${{ steps.prepare_data.outputs.pr_author }}"
+                    }
+                  ]
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "${{ steps.prepare_data.outputs.pr_message }}"
+                  }
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Details",
+                        "emoji": true
+                      },
+                      "url": "${{ steps.prepare_data.outputs.pr_url }}"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}

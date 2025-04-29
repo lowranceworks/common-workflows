@@ -1,0 +1,236 @@
+name: Send Slack Notification for Software Deployment
+
+on:
+  workflow_call:
+    inputs:
+      channel_id:
+        description: "Slack channel ID to send notification to"
+        required: true
+        type: string
+      status:
+        description: "Status of the deployment (success/failure/cancelled)"
+        required: false
+        default: "success"
+        type: string
+      title:
+        description: "Title of the Slack notification (overrides default title based on status)"
+        required: false
+        type: string
+      body:
+        description: "Body of the Slack notification (overrides default notification based on status)"
+        required: false
+        type: string
+      include_timestamp:
+        description: "Include timestamp in the notification"
+        required: false
+        default: true
+        type: boolean
+      include_repository:
+        description: "Include repository information"
+        required: false
+        default: true
+        type: boolean
+      deployment_time:
+        description: "Time when the deployment occurred (UNIX timestamp)"
+        required: false
+        type: string
+      git_hash:
+        description: "Git commit hash of the deployed code"
+        required: false
+        type: string
+      tag:
+        description: "Git tag associated with the deployment"
+        required: false
+        type: string
+      environment:
+        description: "Deployment environment (e.g., production, staging)"
+        required: false
+        default: "production"
+        type: string
+    secrets:
+      SLACK_BOT_TOKEN:
+        required: true
+
+jobs:
+  send-slack-notification:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate repository info
+        if: inputs.include_repository
+        id: repo-info
+        run: |
+          echo "REPO_URL=${{ github.server_url }}/${{ github.repository }}/tree/${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          echo "REPO_TEXT=${{ github.repository }}@${{ github.ref_name }}" >> $GITHUB_OUTPUT
+
+      - name: Set notification defaults based on status
+        id: notification-defaults
+        run: |
+          # Set defaults based on status
+          if [[ "${{ inputs.status }}" == "success" ]]; then
+            echo "title=Deployment Successful" >> $GITHUB_OUTPUT
+            echo "body=The Deployment has been successfully applied!" >> $GITHUB_OUTPUT
+            echo "color=#36A64F" >> $GITHUB_OUTPUT
+            echo "emoji=🚀" >> $GITHUB_OUTPUT
+          elif [[ "${{ inputs.status }}" == "failure" ]]; then
+            echo "title=Deployment Failed" >> $GITHUB_OUTPUT
+            echo "body=The Deployment has failed. Please check the logs for details." >> $GITHUB_OUTPUT
+            echo "color=#DC3545" >> $GITHUB_OUTPUT
+            echo "emoji=❌" >> $GITHUB_OUTPUT
+          elif [[ "${{ inputs.status }}" == "cancelled" ]]; then
+            echo "title=Deployment Cancelled" >> $GITHUB_OUTPUT
+            echo "body=The Deployment was cancelled." >> $GITHUB_OUTPUT
+            echo "color=#FFC107" >> $GITHUB_OUTPUT
+            echo "emoji=⚠️" >> $GITHUB_OUTPUT
+          else
+            echo "title=Deployment Status: ${{ inputs.status }}" >> $GITHUB_OUTPUT
+            echo "body=The Deployment status is: ${{ inputs.status }}" >> $GITHUB_OUTPUT
+            echo "color=#6C757D" >> $GITHUB_OUTPUT
+            echo "emoji=ℹ️" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Prepare Slack payload
+        id: prepare-payload
+        run: |
+          # Determine the git hash to use
+          GIT_HASH="${{ inputs.git_hash }}"
+          if [ -z "$GIT_HASH" ]; then
+            GIT_HASH="${{ github.sha }}"
+          fi
+
+          # Use provided values or defaults
+          TITLE="${{ inputs.title }}"
+          if [ -z "$TITLE" ]; then
+            TITLE="${{ steps.notification-defaults.outputs.title }}"
+          fi
+
+          BODY="${{ inputs.body }}"
+          if [ -z "$BODY" ]; then
+            BODY="${{ steps.notification-defaults.outputs.body }}"
+          fi
+
+          COLOR="${{ steps.notification-defaults.outputs.color }}"
+          EMOJI="${{ steps.notification-defaults.outputs.emoji }}"
+
+          # Create the base payload with required elements
+          cat > payload.json << EOF
+          {
+            "attachments": [
+              {
+                "color": "${COLOR}",
+                "blocks": [
+                  {
+                    "type": "header",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "${EMOJI} ${TITLE}",
+                      "emoji": true
+                    }
+                  },
+                  {
+                    "type": "section",
+                    "text": {
+                      "type": "mrkdwn",
+                      "text": "${BODY}"
+                    }
+                  }
+          EOF
+
+          # Initialize fields array
+          FIELD_ITEMS=()
+
+          # Add environment
+          ENV_FIELD="{
+            \"type\": \"mrkdwn\",
+            \"text\": \"*Environment:*\n${{ inputs.environment }}\"
+          }"
+          FIELD_ITEMS+=("$ENV_FIELD")
+
+          # Add tag if provided
+          if [[ -n "${{ inputs.tag }}" ]]; then
+            TAG_FIELD="{
+              \"type\": \"mrkdwn\",
+              \"text\": \"*Tag:*\n<${{ github.server_url }}/${{ github.repository }}/tree/${{ inputs.tag }}|${{ inputs.tag }}>\"
+            }"
+            FIELD_ITEMS+=("$TAG_FIELD")
+          fi
+
+          # Add commit hash with link
+          COMMIT_FIELD="{
+            \"type\": \"mrkdwn\",
+            \"text\": \"*Commit:*\n<${{ github.server_url }}/${{ github.repository }}/commit/${GIT_HASH}|${GIT_HASH}>\"
+          }"
+          FIELD_ITEMS+=("$COMMIT_FIELD")
+
+          # Add deployment details section
+          cat >> payload.json << EOF
+                  ,
+                  {
+                    "type": "section",
+                    "fields": [
+          EOF
+
+          # Add all fields with proper commas
+          for i in "${!FIELD_ITEMS[@]}"; do
+            if [ $i -gt 0 ]; then
+              echo "," >> payload.json
+            fi
+            echo "${FIELD_ITEMS[$i]}" >> payload.json
+          done
+
+          # Close the fields array and the section
+          cat >> payload.json << EOF
+                    ]
+                  }
+          EOF
+
+          # Add repository section if requested
+          if ${{ inputs.include_repository }}; then
+            cat >> payload.json << EOF
+                  ,
+                  {
+                    "type": "context",
+                    "elements": [
+                      {
+                        "type": "mrkdwn",
+                        "text": "📁 *Repository:* <${{ steps.repo-info.outputs.REPO_URL }}|${{ steps.repo-info.outputs.REPO_TEXT }}>"
+                      }
+                    ]
+                  }
+          EOF
+          fi
+
+          # Add timestamp section if requested and deployment_time is provided
+          if ${{ inputs.include_timestamp }} && [[ -n "${{ inputs.deployment_time }}" ]]; then
+            cat >> payload.json << EOF
+                  ,
+                  {
+                    "type": "context",
+                    "elements": [
+                      {
+                        "type": "mrkdwn",
+                        "text": "⏰ *Deployed at:* <!date^${{ inputs.deployment_time }}^{date_num} {time_secs}|Timestamp>"
+                      }
+                    ]
+                  }
+          EOF
+          fi
+
+          # Close the JSON structure
+          cat >> payload.json << EOF
+                ]
+              }
+            ]
+          }
+          EOF
+
+          # Set the payload as an output
+          echo "payload=$(cat payload.json | jq -c .)" >> $GITHUB_OUTPUT
+
+      - name: Send Slack notification
+        id: slack
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          channel-id: ${{ inputs.channel_id }}
+          payload: ${{ steps.prepare-payload.outputs.payload }}
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}

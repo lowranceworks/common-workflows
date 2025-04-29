@@ -1,0 +1,206 @@
+name: Create Tag and Release
+on: workflow_call
+
+jobs:
+  validate-pr:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+      issues: read
+    outputs:
+      version_type: ${{ steps.validate_labels.outputs.version_type }}
+    steps:
+      - name: Validate PR labels
+        id: validate_labels
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const response = await github.rest.issues.listLabelsOnIssue({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            });
+
+            const labels = response.data.map(label => label.name);
+            const versionLabels = ['patch', 'minor', 'major'];
+            const foundVersionLabels = labels.filter(label => versionLabels.includes(label));
+
+            if (foundVersionLabels.length !== 1) {
+              core.setFailed('PR must have exactly one version label (patch/minor/major)');
+              return;
+            }
+
+            core.setOutput('version_type', foundVersionLabels[0]);
+
+  create-tag:
+    needs: validate-pr
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      new_tag: ${{ steps.get_version.outputs.new_tag }}
+      latest_tag: ${{ steps.get_version.outputs.latest_tag }}
+      version_type: ${{ steps.get_version.outputs.version_type }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get latest tag and increment version
+        id: get_version
+        run: |
+          # Get the latest tag or default to v0.0.0
+          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Latest tag: $latest_tag"
+
+          # Extract version components
+          version=${latest_tag#v}  # Remove 'v' prefix
+          major=$(echo $version | cut -d. -f1)
+          minor=$(echo $version | cut -d. -f2)
+          patch=$(echo $version | cut -d. -f3)
+
+          # Increment version based on PR label
+          version_type="${{ needs.validate-pr.outputs.version_type }}"
+          case $version_type in
+            major)
+              new_major=$((major + 1))
+              new_minor=0
+              new_patch=0
+              ;;
+            minor)
+              new_major=$major
+              new_minor=$((minor + 1))
+              new_patch=0
+              ;;
+            patch)
+              new_major=$major
+              new_minor=$minor
+              new_patch=$((patch + 1))
+              ;;
+          esac
+
+          new_tag="v$new_major.$new_minor.$new_patch"
+          echo "new_tag=${new_tag}" >> $GITHUB_OUTPUT
+          echo "latest_tag=${latest_tag}" >> $GITHUB_OUTPUT
+          echo "version_type=${version_type}" >> $GITHUB_OUTPUT
+
+      - name: Create and push new tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          new_tag="${{ steps.get_version.outputs.new_tag }}"
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git tag -a $new_tag -m "Release $new_tag"
+          git push origin $new_tag
+
+  create-release:
+    needs: create-tag
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get latest tag
+        id: get_latest_tag
+        run: |
+          # Use the tag from the previous job
+          latest_tag="${{ needs.create-tag.outputs.new_tag }}"
+          echo "latest_tag=${latest_tag}" >> $GITHUB_OUTPUT
+
+          # Extract version components without the 'v' prefix
+          version=${latest_tag#v}
+          echo "version=${version}" >> $GITHUB_OUTPUT
+
+          # Use the version type from the previous job
+          release_type="${{ needs.create-tag.outputs.version_type }}"
+          echo "release_type=${release_type}" >> $GITHUB_OUTPUT
+
+      - name: Check for CHANGELOG entry
+        id: check_changelog
+        run: |
+          # Get version without 'v' prefix
+          version="${{ steps.get_latest_tag.outputs.version }}"
+
+          # Check if CHANGELOG.md exists
+          if [ -f "CHANGELOG.md" ]; then
+            echo "changelog_exists=true" >> $GITHUB_OUTPUT
+            
+            # Look for the version header in CHANGELOG.md
+            # This pattern will match both ## [0.1.0] and ## 0.1.0 formats
+            if grep -q "^## \[*${version}\]*" CHANGELOG.md; then
+              echo "version_entry_exists=true" >> $GITHUB_OUTPUT
+              
+              # Extract content for this version
+              # Get content between current version header and next header/end of file
+              awk -v ver="${version}" '
+                BEGIN { found=0; content=""; }
+                /^## \[*'${version}'\]*/ { found=1; next; }
+                /^## / { if (found) { exit; } }
+                { if (found) { content = content $0 "\n"; } }
+                END { print content; }
+              ' CHANGELOG.md > version_content.txt
+              
+              # Create multiline output
+              echo "CHANGELOG_CONTENT<<EOF" >> $GITHUB_OUTPUT
+              cat version_content.txt >> $GITHUB_OUTPUT
+              echo "EOF" >> $GITHUB_OUTPUT
+              
+              # Clean up
+              rm version_content.txt
+            else
+              echo "version_entry_exists=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "changelog_exists=false" >> $GITHUB_OUTPUT
+            echo "version_entry_exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate changelog from git history
+        id: generate_changelog
+        if: steps.check_changelog.outputs.version_entry_exists != 'true'
+        run: |
+          latest_tag="${{ steps.get_latest_tag.outputs.latest_tag }}"
+          release_type="${{ steps.get_latest_tag.outputs.release_type }}"
+          previous_tag="${{ needs.create-tag.outputs.latest_tag }}"
+
+          echo "CHANGELOG_BODY<<EOF" >> $GITHUB_OUTPUT
+          echo "## Changes in this release" >> $GITHUB_OUTPUT
+          echo "**Version Type:** ${release_type}" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+
+          # Handle first release case
+          if [ "$previous_tag" = "v0.0.0" ]; then
+            git log --pretty=format:"* %s (%h)" >> $GITHUB_OUTPUT
+          else
+            git log --pretty=format:"* %s (%h)" $previous_tag..$latest_tag >> $GITHUB_OUTPUT
+          fi
+
+          echo "" >> $GITHUB_OUTPUT
+
+          if [ "$release_type" = "major" ]; then
+            echo "" >> $GITHUB_OUTPUT
+            echo "⚠️ **This is a major release with potentially breaking changes**" >> $GITHUB_OUTPUT
+          fi
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.get_latest_tag.outputs.latest_tag }}
+          name: Release ${{ steps.get_latest_tag.outputs.latest_tag }}
+          body: ${{ steps.check_changelog.outputs.version_entry_exists == 'true' && steps.check_changelog.outputs.CHANGELOG_CONTENT || steps.generate_changelog.outputs.CHANGELOG_BODY }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

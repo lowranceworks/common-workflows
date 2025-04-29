@@ -1,0 +1,256 @@
+name: Send Slack Notification for Artifact Build
+
+on:
+  workflow_call:
+    inputs:
+      channel_id:
+        description: "Slack channel ID to send notification to"
+        required: true
+        type: string
+      status:
+        description: "Status of the build (success/failure/cancelled)"
+        required: false
+        default: "success"
+        type: string
+      title:
+        description: "Title of the Slack notification (overrides default title based on status)"
+        required: false
+        type: string
+      body:
+        description: "Body of the Slack notification (overrides default notification based on status)"
+        required: false
+        type: string
+      include_timestamp:
+        description: "Include timestamp in the notification"
+        required: false
+        default: true
+        type: boolean
+      include_repository:
+        description: "Include repository information"
+        required: false
+        default: true
+        type: boolean
+      build_time:
+        description: "Time when the build occurred (UNIX timestamp)"
+        required: false
+        type: string
+      artifact_url:
+        description: "URL to the built artifact"
+        required: false
+        type: string
+      artifact_name:
+        description: "Name of the built artifact"
+        required: false
+        type: string
+      git_hash:
+        description: "Git commit hash of the build code"
+        required: false
+        type: string
+      tag:
+        description: "Git tag associated with the build"
+        required: false
+        type: string
+    secrets:
+      SLACK_BOT_TOKEN:
+        required: true
+
+jobs:
+  send-slack-notification:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate repository info
+        if: inputs.include_repository
+        id: repo-info
+        run: |
+          echo "REPO_URL=${{ github.server_url }}/${{ github.repository }}/tree/${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          echo "REPO_TEXT=${{ github.repository }}@${{ github.ref_name }}" >> $GITHUB_OUTPUT
+
+      - name: Set notification defaults based on status
+        id: notification-defaults
+        run: |
+          # Set defaults based on status
+          if [[ "${{ inputs.status }}" == "success" ]]; then
+            echo "title=Build Successful" >> $GITHUB_OUTPUT
+            echo "body=The Artifact has been built successfully!" >> $GITHUB_OUTPUT
+            echo "color=#36A64F" >> $GITHUB_OUTPUT
+            echo "emoji=🏗️" >> $GITHUB_OUTPUT
+          elif [[ "${{ inputs.status }}" == "failure" ]]; then
+            echo "title=Build Failed" >> $GITHUB_OUTPUT
+            echo "body=The Artifact build has failed. Please check the logs for details." >> $GITHUB_OUTPUT
+            echo "color=#DC3545" >> $GITHUB_OUTPUT
+            echo "emoji=❌" >> $GITHUB_OUTPUT
+          elif [[ "${{ inputs.status }}" == "cancelled" ]]; then
+            echo "title=Build Cancelled" >> $GITHUB_OUTPUT
+            echo "body=The Artifact build was cancelled." >> $GITHUB_OUTPUT
+            echo "color=#FFC107" >> $GITHUB_OUTPUT
+            echo "emoji=⚠️" >> $GITHUB_OUTPUT
+          else
+            echo "title=Build Status: ${{ inputs.status }}" >> $GITHUB_OUTPUT
+            echo "body=The Artifact build status is: ${{ inputs.status }}" >> $GITHUB_OUTPUT
+            echo "color=#6C757D" >> $GITHUB_OUTPUT
+            echo "emoji=ℹ️" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Prepare Slack payload
+        id: prepare-payload
+        run: |
+          # Determine the git hash to use
+          GIT_HASH="${{ inputs.git_hash }}"
+          if [ -z "$GIT_HASH" ]; then
+            GIT_HASH="${{ github.sha }}"
+          fi
+
+          # Use provided values or defaults
+          TITLE="${{ inputs.title }}"
+          if [ -z "$TITLE" ]; then
+            TITLE="${{ steps.notification-defaults.outputs.title }}"
+          fi
+
+          BODY="${{ inputs.body }}"
+          if [ -z "$BODY" ]; then
+            BODY="${{ steps.notification-defaults.outputs.body }}"
+          fi
+
+          COLOR="${{ steps.notification-defaults.outputs.color }}"
+          EMOJI="${{ steps.notification-defaults.outputs.emoji }}"
+
+          # Create the base payload with required elements
+          cat > payload.json << EOF
+          {
+            "attachments": [
+              {
+                "color": "${COLOR}",
+                "blocks": [
+                  {
+                    "type": "header",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "${EMOJI} ${TITLE}",
+                      "emoji": true
+                    }
+                  },
+                  {
+                    "type": "section",
+                    "text": {
+                      "type": "mrkdwn",
+                      "text": "${BODY}"
+                    }
+                  }
+          EOF
+
+          # Initialize fields array flag
+          FIELDS_ADDED=false
+
+          # Start fields section if any optional field is available
+          if [[ -n "${{ inputs.artifact_name }}" || -n "${{ inputs.tag }}" || -n "$GIT_HASH" ]]; then
+            cat >> payload.json << EOF
+                  ,
+                  {
+                    "type": "section",
+                    "fields": [
+          EOF
+            FIELDS_ADDED=true
+            
+            # Field items array to track fields for comma handling
+            FIELD_ITEMS=()
+            
+            # Add artifact if provided
+            if [[ -n "${{ inputs.artifact_name }}" ]]; then
+              ARTIFACT_FIELD="{
+                \"type\": \"mrkdwn\",
+                \"text\": \"*Artifact:*\n"
+              
+              if [[ -n "${{ inputs.artifact_url }}" ]]; then
+                ARTIFACT_FIELD+="<${{ inputs.artifact_url }}|${{ inputs.artifact_name }}>"
+              else
+                ARTIFACT_FIELD+="${{ inputs.artifact_name }}"
+              fi
+              
+              ARTIFACT_FIELD+="\"
+              }"
+              
+              FIELD_ITEMS+=("$ARTIFACT_FIELD")
+            fi
+            
+            # Add tag if provided
+            if [[ -n "${{ inputs.tag }}" ]]; then
+              TAG_FIELD="{
+                \"type\": \"mrkdwn\",
+                \"text\": \"*Tag:*\n<${{ github.server_url }}/${{ github.repository }}/tree/${{ inputs.tag }}|${{ inputs.tag }}>\"
+              }"
+              FIELD_ITEMS+=("$TAG_FIELD")
+            fi
+            
+            # Add commit hash with link
+            COMMIT_FIELD="{
+              \"type\": \"mrkdwn\",
+              \"text\": \"*Commit:*\n<${{ github.server_url }}/${{ github.repository }}/commit/${GIT_HASH}|${GIT_HASH}>\"
+            }"
+            FIELD_ITEMS+=("$COMMIT_FIELD")
+            
+            # Add all fields with proper commas
+            for i in "${!FIELD_ITEMS[@]}"; do
+              if [ $i -gt 0 ]; then
+                echo "," >> payload.json
+              fi
+              echo "${FIELD_ITEMS[$i]}" >> payload.json
+            done
+            
+            # Close the fields array and the section
+            cat >> payload.json << EOF
+                    ]
+                  }
+          EOF
+          fi
+
+          # Add repository section if requested
+          if ${{ inputs.include_repository }}; then
+            cat >> payload.json << EOF
+                  ,
+                  {
+                    "type": "context",
+                    "elements": [
+                      {
+                        "type": "mrkdwn",
+                        "text": "📁 *Repository:* <${{ steps.repo-info.outputs.REPO_URL }}|${{ steps.repo-info.outputs.REPO_TEXT }}>"
+                      }
+                    ]
+                  }
+          EOF
+          fi
+
+          # Add timestamp section if requested and build_time is provided
+          if ${{ inputs.include_timestamp }} && [[ -n "${{ inputs.build_time }}" ]]; then
+            cat >> payload.json << EOF
+                  ,
+                  {
+                    "type": "context",
+                    "elements": [
+                      {
+                        "type": "mrkdwn",
+                        "text": "⏰ *Built at:* <!date^${{ inputs.build_time }}^{date_num} {time_secs}|Timestamp>"
+                      }
+                    ]
+                  }
+          EOF
+          fi
+
+          # Close the JSON structure
+          cat >> payload.json << EOF
+                ]
+              }
+            ]
+          }
+          EOF
+
+          # Set the payload as an output
+          echo "payload=$(cat payload.json | jq -c .)" >> $GITHUB_OUTPUT
+
+      - name: Send Slack Notification
+        id: slack
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          channel-id: ${{ inputs.channel_id }}
+          payload: ${{ steps.prepare-payload.outputs.payload }}
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}

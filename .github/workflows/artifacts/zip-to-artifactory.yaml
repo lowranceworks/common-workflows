@@ -1,0 +1,83 @@
+name: Build and Push Zip Artifact
+on:
+  workflow_call:
+    inputs:
+      artifact_repository:
+        required: true
+        type: string
+        description: "Artifactory repository to push to"
+      artifact_path:
+        required: true
+        type: string
+        description: "Path within repository to store artifact"
+      build_name:
+        required: false
+        type: string
+        description: "Name for the JFrog build"
+        default: "artifact-build"
+      artifactory_url:
+        required: false
+        type: string
+        description: "Artifactory url"
+        default: "https://artifacts.foo.net"
+    secrets:
+      ARTIFACTORY_USERNAME:
+        required: true
+      ARTIFACTORY_PASSWORD:
+        required: true
+jobs:
+  determine-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history and tags
+      - name: Determine version
+        id: get-version
+        run: |
+          # Try to get the latest tag
+          if git describe --tags --abbrev=0 2>/dev/null; then
+            VERSION=$(git describe --tags --abbrev=0 | sed 's/^v//')
+          else
+            VERSION=$(git rev-parse --short HEAD)
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Using version: $VERSION"
+
+  build-and-push-zip-artifact:
+    needs: determine-version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create ZIP bundle
+        run: |
+          zip -r artifact.zip . \
+            --exclude ".git/*" \
+            --exclude ".github/*" \
+            --exclude "*.gitignore" \
+            --exclude "*.DS_Store" \
+            --exclude "*.idea*" \
+            --exclude "*.vscode*"
+      - name: Configure Artifactory
+        uses: jfrog/setup-jfrog-cli@v4
+        with:
+          version: "2.73.3"
+          disable-job-summary: true
+          disable-auto-build-publish: false
+      - name: Setup Artifactory Config
+        run: |
+          jf c add artifactory \
+            --url=${{ inputs.artifactory_url }} \
+            --user="${{ secrets.ARTIFACTORY_USERNAME }}" \
+            --password="${{ secrets.ARTIFACTORY_PASSWORD }}" \
+            --interactive=false \
+            --enc-password=false
+      - name: Push to Artifactory
+        run: |
+          jf rt u \
+            "artifact.zip" \
+            "${{ inputs.artifact_repository }}/${{ inputs.artifact_path }}/${{ needs.determine-version.outputs.version }}/" \
+            --build-name=${{ inputs.build_name }} \
+            --build-number=${{ needs.determine-version.outputs.version }}
