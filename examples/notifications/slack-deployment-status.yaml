@@ -3,31 +3,33 @@ on:
   workflow_dispatch:
     inputs:
       channel_id:
-        description: "Slack channel ID to send notification to"
+        description: "slack channel id to send notification to"
         required: true
         type: string
       environment:
-        description: "Deployment environment"
+        description: "deployment environment"
         required: false
         default: "qa"
         type: choice
         options:
           - dev
           - qa
-          - uat
-          - prod
+          - uat-usa
+          - uat-emea
+          - prod-usa
+          - prod-emea
       git_hash:
-        description: "Git commit hash for testing"
+        description: "git commit hash for testing"
         required: false
         default: "asdfasdf"
         type: string
       tag:
-        description: "Git tag for testing"
+        description: "git tag for testing"
         required: false
         default: "1.1.0"
         type: string
       simulate_status:
-        description: "Simulate a specific deployment status"
+        description: "simulate a specific deployment status"
         required: false
         default: "success"
         type: choice
@@ -35,46 +37,40 @@ on:
           - success
           - failure
           - cancelled
-
 jobs:
   determine-deployment-status:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     outputs:
       status: ${{ steps.check-deployment.outputs.status }}
       deployment_time: ${{ steps.check-deployment.outputs.deployment_time }}
     steps:
-      - name: Check deployment status and set outputs
+      - name: check deployment status and set outputs
         id: check-deployment
         run: |
-          # Generate deployment timestamp
-          echo "deployment_time=$(date +%s)" >> $GITHUB_OUTPUT
-
-          # Determine status (in a real workflow, this would check actual deployment results)
-          # For this example, we'll use the input parameter
-          STATUS="${{ github.event.inputs.simulate_status }}"
-
-          # Log what we're doing
-          echo "Checking deployment status for ${{ github.event.inputs.environment }} environment: $STATUS"
-
-          # Set the status output
-          echo "status=$STATUS" >> $GITHUB_OUTPUT
-
-          # Simulate actual deployment behavior based on status
-          if [[ "$STATUS" == "failure" ]]; then
-            echo "Deployment failed to ${{ github.event.inputs.environment }}!"
-            # In a real job, we'd probably exit with an error here
-            # But for demo purposes, we want the next job to run
-          elif [[ "$STATUS" == "cancelled" ]]; then
-            echo "Deployment to ${{ github.event.inputs.environment }} was cancelled!"
+          # generate deployment timestamp
+          echo "deployment_time=$(date +%s)" >> $github_output
+          # determine status (in a real workflow, this would check actual deployment results)
+          # for this example, we'll use the input parameter
+          status="${{ github.event.inputs.simulate_status }}"
+          # log what we're doing
+          echo "checking deployment status for ${{ github.event.inputs.environment }} environment: $status"
+          # set the status output
+          echo "status=$status" >> $github_output
+          # simulate actual deployment behavior based on status
+          if [[ "$status" == "failure" ]]; then
+            echo "deployment failed to ${{ github.event.inputs.environment }}!"
+            # in a real job, we'd probably exit with an error here
+            # but for demo purposes, we want the next job to run
+          elif [[ "$status" == "cancelled" ]]; then
+            echo "deployment to ${{ github.event.inputs.environment }} was cancelled!"
           else
-            echo "Deployment to ${{ github.event.inputs.environment }} completed successfully!"
+            echo "deployment to ${{ github.event.inputs.environment }} completed successfully!"
           fi
-
-  send-slack-message:
+  send-slack-notification:
     needs: determine-deployment-status
     uses: lowranceworks/common-workflows/.github/workflows/notifications/slack-deployment-status.yaml@main
     with:
-      channel-id: ${{ inputs.channel_id }}
+      channel_id: ${{ github.event.inputs.channel_id }}
       status: ${{ needs.determine-deployment-status.outputs.status }}
       git_hash: ${{ github.event.inputs.git_hash }}
       tag: ${{ github.event.inputs.tag }}
@@ -83,4 +79,4 @@ jobs:
       include_timestamp: true
       include_repository: true
     secrets:
-      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      slack_bot_token: ${{ secrets.slack_bot_token }}
