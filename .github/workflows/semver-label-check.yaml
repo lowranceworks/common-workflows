@@ -1,4 +1,4 @@
-name: Version Label Check
+name: Semver Label Check
 on: workflow_call
 
 jobs:

@@ -1,4 +1,4 @@
-name: Notify Slack channel for Pull Request
+name: Notify Slack Channel - Pull Request Review
 
 on:
   workflow_call:

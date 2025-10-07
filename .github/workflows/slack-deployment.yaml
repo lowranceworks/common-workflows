@@ -1,4 +1,4 @@
-name: Send Slack Notification for Software Deployment
+name: Notify Slack Channel - Deployment
 
 on:
   workflow_call:

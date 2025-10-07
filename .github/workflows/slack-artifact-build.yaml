@@ -1,4 +1,4 @@
-name: Send Slack Notification for Artifact Build
+name: Notify Slack Channel - Artifact Build
 
 on:
   workflow_call:
