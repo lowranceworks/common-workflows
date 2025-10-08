@@ -3,7 +3,8 @@ on:
   pull_request:
     types: [closed]
 jobs:
-  create-release:
+  create-tag-and-release:
+    name: Create Tag and Release
     uses: lowranceworks/common-workflows/.github/workflows/create-tag-and-release.yaml@main
     permissions:
       contents: write

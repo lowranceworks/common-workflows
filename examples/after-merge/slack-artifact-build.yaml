@@ -70,7 +70,8 @@ jobs:
             echo "Build status indicates success!"
           fi
 
-  send-slack-message:
+  notify-slack-channel:
+    name: Notify Slack channel
     needs: determine-status
     uses: lowranceworks/common-workflows/.github/workflows/slack-artifact-build.yaml@main
     with:

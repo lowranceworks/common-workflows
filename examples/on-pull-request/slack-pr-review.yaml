@@ -5,8 +5,8 @@ on:
     types: [opened, review_requested, ready_for_review]
 
 jobs:
-  send-slack-notification-pull-request:
-    name: Notify Software Engineering Team for PR Review
+  notify-slack-channel:
+    name: Notify Software Engineering Slack Channel
     uses: lowranceworks/common-workflows/.github/workflows/slack-pr-review.yaml@main
     with:
       team-slug: "swe"
