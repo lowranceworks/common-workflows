@@ -1,8 +1,8 @@
-name: Semver Label Check
+name: Semver Label
 on: workflow_call
 
 jobs:
-  check-semver-label:
+  check-label:
     runs-on: ubuntu-latest
     permissions:
       issues: write
@@ -22,14 +22,14 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             // Get current version
-            let currentVersion = '0.0.0';
+            let currentVersion = '0.1.0';
             try {
               const { stdout } = await exec.getExecOutput('git describe --tags --abbrev=0');
               if (stdout.trim()) {
                 currentVersion = stdout.trim().replace('v', '');
               }
             } catch (error) {
-              console.log('No tags found, using default version 0.0.0');
+              console.log('No tags found, using default version 0.1.0');
             }
 
             console.log(`Current version: ${currentVersion}`);
@@ -41,10 +41,15 @@ jobs:
               issue_number: context.issue.number
             });
 
-            const versionLabels = ['patch', 'minor', 'major'];
+            const versionLabels = ['patch change', 'minor change', 'major change'];
             const foundVersionLabels = response.data
-              .map(label => label.name)
+              .map(label => label.name.toLowerCase())
               .filter(name => versionLabels.includes(name));
+
+            // Default to 'patch change' if no label found
+            if (foundVersionLabels.length === 0) {
+              foundVersionLabels.push('patch change');
+            }
 
             // Remove any existing version-related status comments
             const comments = await github.rest.issues.listComments({
@@ -53,24 +58,22 @@ jobs:
               issue_number: context.issue.number
             });
 
+            let existingCommentId = null;
             for (const comment of comments.data) {
-              if (comment.body.includes('### Version Label Status')) {
-                await github.rest.issues.deleteComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  comment_id: comment.id
-                });
+              if (comment.user.type === 'Bot' && comment.body.includes('### Version Label Status')) {
+                existingCommentId = comment.id;
+                break;
               }
             }
 
             // Calculate next version based on label
-            function getNextVersion(type) {
-              switch(type) {
-                case 'major':
+            function getNextVersion(label) {
+              switch(label) {
+                case 'major change':
                   return `${major + 1}.0.0`;
-                case 'minor':
+                case 'minor change':
                   return `${major}.${minor + 1}.0`;
-                case 'patch':
+                case 'patch change':
                   return `${major}.${minor}.${patch + 1}`;
                 default:
                   return currentVersion;
@@ -81,47 +84,58 @@ jobs:
             let status = '### Version Label Status\n\n';
             let shouldFail = false;
 
-            if (foundVersionLabels.length === 0) {
-              status += '❌ **Error:** No version label found!\n\n' +
-                       'This PR requires exactly one of the following labels:\n' +
-                       '- `patch`: backwards-compatible bug fixes\n' +
-                       '- `minor`: backwards-compatible features\n' +
-                       '- `major`: breaking changes\n\n' +
-                       'Please add one label to specify the type of version change.';
-              shouldFail = true;
-            } else if (foundVersionLabels.length > 1) {
+            if (foundVersionLabels.length > 1) {
               status += '❌ **Error:** Multiple version labels detected!\n\n' +
-                       `Found labels: ${foundVersionLabels.join(', ')}\n\n` +
+                       `Found labels: ${foundVersionLabels.map(l => `\`${l}\``).join(', ')}\n\n` +
                        'Please remove all but one version label. ' +
                        'Only one version type is allowed per PR.';
               shouldFail = true;
             } else {
-              const nextVersion = getNextVersion(foundVersionLabels[0]);
-              status += `✅ **Success:** Valid version label found: \`${foundVersionLabels[0]}\`\n\n` +
-                       'This PR will trigger a version increment when merged:\n' +
+              const labelType = foundVersionLabels[0];
+              const nextVersion = getNextVersion(labelType);
+              const isDefault = !response.data.some(label => 
+                versionLabels.includes(label.name.toLowerCase())
+              );
+              
+              if (isDefault) {
+                status += `ℹ️ **Info:** No version label found, defaulting to \`patch change\`\n\n`;
+              } else {
+                status += `✅ **Success:** Valid version label found: \`${labelType}\`\n\n`;
+              }
+              
+              status += 'This PR will trigger a version increment when merged:\n' +
                        `\`v${currentVersion}\` → \`v${nextVersion}\`\n\n`;
               
               // Add explanation of the change
-              switch(foundVersionLabels[0]) {
-                case 'major':
+              switch(labelType) {
+                case 'major change':
                   status += '- **Major** version increment (breaking changes)';
                   break;
-                case 'minor':
+                case 'minor change':
                   status += '- **Minor** version increment (new features, backwards compatible)';
                   break;
-                case 'patch':
+                case 'patch change':
                   status += '- **Patch** version increment (bug fixes, backwards compatible)';
                   break;
               }
             }
 
-            // Post status as comment
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: status
-            });
+            // Post or update status as comment
+            if (existingCommentId) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingCommentId,
+                body: status
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: status
+              });
+            }
 
             // Set check conclusion
             if (shouldFail) {

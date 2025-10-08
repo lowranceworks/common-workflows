@@ -16,7 +16,7 @@ examples/
 ### On Pull Request
 Workflows that validate and notify when pull requests are created or updated.
 
-- **`semver-label-check.yaml`** - Validates that PRs have proper semantic versioning labels
+- **`semver-label.yaml`** - Validates that PRs have proper semantic versioning labels
 - **`slack-pr-review.yaml`** - Sends Slack notifications when PR reviews are needed
 
 ### After Merge

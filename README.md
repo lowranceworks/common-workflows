@@ -19,8 +19,8 @@ on:
     types: [opened, labeled, unlabeled]
 
 jobs:
-  check-semver-label:
-    uses: lowranceworks/common-workflows/.github/workflows/semver-label-check.yaml@main
+  check-semver:
+    uses: lowranceworks/common-workflows/.github/workflows/semver-label.yaml@main
     with:
       # Add any required inputs here
 ```
@@ -30,7 +30,7 @@ jobs:
 ### Pull Request Workflows
 Run when PRs are opened or updated to validate and notify.
 
-- **[semver-label-check](docs/semver-label-check.md)** - Ensures PRs have semantic versioning labels (major/minor/patch)
+- **[semver-label](docs/semver-label.md)** - Ensures PRs have semantic versioning labels (major/minor/patch)
 - **[slack-pr-review](docs/slack-pr-review.md)** - Notifies your team when reviews are needed
 
 ### Post-Merge Workflows
@@ -60,7 +60,7 @@ Check the [`examples/`](examples/) directory for ready-to-use workflow files org
 For production use, pin to a specific version instead of `@main`:
 
 ```yaml
-uses: lowranceworks/common-workflows/.github/workflows/semver-label-check.yaml@v1.2.3
+uses: lowranceworks/common-workflows/.github/workflows/semver-label.yaml@v1.2.3
 ```
 
 ### Required Secrets
