@@ -1,4 +1,4 @@
-name: Send Slack Notification Artifact Build
+name: Notify Slack Channel - Artifact Build
 on:
   workflow_dispatch:
     inputs:
@@ -72,7 +72,7 @@ jobs:
 
   send-slack-message:
     needs: determine-status
-    uses: lowranceworks/common-workflows/.github/workflows/notifications/slack-build-status.yaml@main
+    uses: lowranceworks/common-workflows/.github/workflows/slack-artifact-build.yaml@main
     with:
       channel-id: ${{ inputs.channel_id }}
       status: ${{ needs.determine-status.outputs.status }}

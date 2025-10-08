@@ -1,4 +1,4 @@
-name: Send Slack Notification Deployment
+name: Notify Slack Channel - Deployment
 on:
   workflow_dispatch:
     inputs:
@@ -68,7 +68,7 @@ jobs:
           fi
   send-slack-notification:
     needs: determine-deployment-status
-    uses: lowranceworks/common-workflows/.github/workflows/notifications/slack-deployment-status.yaml@main
+    uses: lowranceworks/common-workflows/.github/workflows/slack-deployment.yaml@main
     with:
       channel_id: ${{ github.event.inputs.channel_id }}
       status: ${{ needs.determine-deployment-status.outputs.status }}
