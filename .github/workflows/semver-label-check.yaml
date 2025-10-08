@@ -58,13 +58,11 @@ jobs:
               issue_number: context.issue.number
             });
 
+            let existingCommentId = null;
             for (const comment of comments.data) {
-              if (comment.body.includes('### Version Label Status')) {
-                await github.rest.issues.deleteComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  comment_id: comment.id
-                });
+              if (comment.user.type === 'Bot' && comment.body.includes('### Version Label Status')) {
+                existingCommentId = comment.id;
+                break;
               }
             }
 
@@ -122,13 +120,22 @@ jobs:
               }
             }
 
-            // Post status as comment
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: status
-            });
+            // Post or update status as comment
+            if (existingCommentId) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingCommentId,
+                body: status
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: status
+              });
+            }
 
             // Set check conclusion
             if (shouldFail) {
