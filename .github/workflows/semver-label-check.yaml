@@ -1,8 +1,8 @@
-name: Semver Label
+name: Semver Label Check
 on: workflow_call
 
 jobs:
-  check-label:
+  check-semver-label:
     runs-on: ubuntu-latest
     permissions:
       issues: write
@@ -15,7 +15,7 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Check labels
+      - name: Check version labels
         id: check_labels
         uses: actions/github-script@v6
         with:
@@ -41,14 +41,14 @@ jobs:
               issue_number: context.issue.number
             });
 
-            const versionLabels = ['patch', 'minor', 'major'];
+            const versionLabels = ['patch change', 'minor change', 'major change'];
             const foundVersionLabels = response.data
-              .map(label => label.name)
+              .map(label => label.name.toLowerCase())
               .filter(name => versionLabels.includes(name));
 
-            // Default to 'patch' if no label found
+            // Default to 'patch change' if no label found
             if (foundVersionLabels.length === 0) {
-              foundVersionLabels.push('patch');
+              foundVersionLabels.push('patch change');
             }
 
             // Remove any existing version-related status comments
@@ -69,13 +69,13 @@ jobs:
             }
 
             // Calculate next version based on label
-            function getNextVersion(type) {
-              switch(type) {
-                case 'major':
+            function getNextVersion(label) {
+              switch(label) {
+                case 'major change':
                   return `${major + 1}.0.0`;
-                case 'minor':
+                case 'minor change':
                   return `${major}.${minor + 1}.0`;
-                case 'patch':
+                case 'patch change':
                   return `${major}.${minor}.${patch + 1}`;
                 default:
                   return currentVersion;
@@ -88,17 +88,19 @@ jobs:
 
             if (foundVersionLabels.length > 1) {
               status += '❌ **Error:** Multiple version labels detected!\n\n' +
-                       `Found labels: ${foundVersionLabels.join(', ')}\n\n` +
+                       `Found labels: ${foundVersionLabels.map(l => `\`${l}\``).join(', ')}\n\n` +
                        'Please remove all but one version label. ' +
                        'Only one version type is allowed per PR.';
               shouldFail = true;
             } else {
               const labelType = foundVersionLabels[0];
               const nextVersion = getNextVersion(labelType);
-              const isDefault = !response.data.some(label => versionLabels.includes(label.name));
+              const isDefault = !response.data.some(label => 
+                versionLabels.includes(label.name.toLowerCase())
+              );
               
               if (isDefault) {
-                status += `ℹ️ **Info:** No version label found, defaulting to \`patch\`\n\n`;
+                status += `ℹ️ **Info:** No version label found, defaulting to \`patch change\`\n\n`;
               } else {
                 status += `✅ **Success:** Valid version label found: \`${labelType}\`\n\n`;
               }
@@ -108,13 +110,13 @@ jobs:
               
               // Add explanation of the change
               switch(labelType) {
-                case 'major':
+                case 'major change':
                   status += '- **Major** version increment (breaking changes)';
                   break;
-                case 'minor':
+                case 'minor change':
                   status += '- **Minor** version increment (new features, backwards compatible)';
                   break;
-                case 'patch':
+                case 'patch change':
                   status += '- **Patch** version increment (bug fixes, backwards compatible)';
                   break;
               }
