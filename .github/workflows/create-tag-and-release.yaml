@@ -3,6 +3,7 @@ on: workflow_call
 
 jobs:
   validate-pr:
+    name: Validate Pull Request
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     permissions:
@@ -35,6 +36,7 @@ jobs:
             core.setOutput('version_type', foundVersionLabels[0]);
 
   create-tag:
+    name: Create Tag
     needs: validate-pr
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
@@ -100,6 +102,7 @@ jobs:
           git push origin $new_tag
 
   create-release:
+    name: Create Release
     needs: create-tag
     runs-on: ubuntu-latest
     permissions:

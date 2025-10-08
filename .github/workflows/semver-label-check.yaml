@@ -3,6 +3,7 @@ on: workflow_call
 
 jobs:
   check-semver-label:
+    name: Semantic Version Label Check
     runs-on: ubuntu-latest
     permissions:
       issues: write

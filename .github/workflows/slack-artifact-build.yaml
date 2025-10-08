@@ -55,7 +55,8 @@ on:
         required: true
 
 jobs:
-  send-slack-notification:
+  notify-slack-channel:
+    name: Notify Slack channel
     runs-on: ubuntu-latest
     steps:
       - name: Generate repository info
