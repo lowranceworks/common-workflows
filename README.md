@@ -30,20 +30,20 @@ jobs:
 ### Pull Request Workflows
 Run when PRs are opened or updated to validate and notify.
 
-- **[semver-label-check](docs/validations/semver-label-check.md)** - Ensures PRs have semantic versioning labels (major/minor/patch)
-- **[slack-pull-request-review-needed](docs/notifications/slack-pull-request-review-needed.md)** - Notifies your team when reviews are needed
+- **[semver-label-check](docs/semver-label-check.md)** - Ensures PRs have semantic versioning labels (major/minor/patch)
+- **[slack-pr-review](docs/slack-pr-review.md)** - Notifies your team when reviews are needed
 
 ### Post-Merge Workflows
 Automatically run after code is merged to your main branch.
 
-- **[zip-to-artifactory](docs/artifacts/zip-to-artifactory.md)** - Builds and uploads ZIP artifacts to Artifactory
-- **[create-tag-and-release](docs/releases/create-tag-and-release.md)** - Automatically creates Git tags and GitHub releases
-- **[slack-build-status](docs/notifications/slack-build-status.md)** - Sends build status notifications to Slack
+- **[build-zip-upload-artifactory](docs/build-zip-upload-artifactory.md)** - Builds and uploads ZIP artifacts to Artifactory
+- **[create-tag-and-release](docs/create-tag-and-release.md)** - Automatically creates Git tags and GitHub releases
+- **[slack-artifact-build](docs/slack-artifact-build.md)** - Sends build status notifications to Slack
 
 ### Deployment Workflows
 Run after releases are created to notify about deployments.
 
-- **[slack-deployment-status](docs/notifications/slack-deployment-status.md)** - Sends deployment notifications to Slack
+- **[slack-deployment](docs/slack-deployment.md)** - Sends deployment notifications to Slack
 
 ## Examples
 

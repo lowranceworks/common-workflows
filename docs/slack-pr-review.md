@@ -1,62 +1,126 @@
-# Slack Pull Request Review Needed
+# Slack Pull Request Review Notifications
 
-## Why do we need this workflow?
+Automatically sends Slack notifications when pull request reviews are needed.
 
-We want Github Actions to send us a notification via Slack when a review is needed on a pull-request.
+## Quick Start
 
-## Required GitHub Secrets
-
-Set up these secrets in your repository:
-
-- `SLACK_BOT_TOKEN`: A Slack bot token (`xoxb-...`) with the `chat:write` scope
-- `DEVOPS_TEAM_SLACK_CHANNEL_ID`: Slack channel ID to receive notifications
-
-## How to Use for Additional Teams
-
-To set up notifications for another team (e.g., "dev-team"):
-
-1. Create a new workflow file:
+Add this workflow to your repository at `.github/workflows/pr-review-notifications.yaml`:
 
 ```yaml
-name: Dev Team PR Notifications
+name: PR Review Notifications
 
 on:
   pull_request:
     types: [opened, review_requested, ready_for_review]
 
 jobs:
-  notify-dev-team:
-    name: Notify Dev Team for Pull Request Review
-    uses: ./.github/workflows/notifications/slack-pull-request-review.yaml
+  notify-team:
+    uses: lowranceworks/common-workflows/.github/workflows/slack-pr-review.yaml@main
     with:
-      team-slug: "dev"
-      team-display-name: "Dev Team"
-      slack-channel-id: ${{ secrets.DEV_TEAM_SLACK_CHANNEL_ID }}
+      team-slug: "engineering"
+      team-display-name: "Engineering Team"
+      slack-channel-id: ${{ vars.SLACK_CHANNEL_ID }}
     secrets:
-      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      slack_bot_token: ${{ secrets.SLACK_BOT_TOKEN }}
+    permissions:
+      pull-requests: read
 ```
 
-2. Add the corresponding secret (in this example `DEV_TEAM_SLACK_CHANNEL_ID`) to the repository.
+## Required Configuration
 
-## How It Works
+### Repository Secrets
 
+Set these in your repository settings (Settings → Secrets and variables → Actions):
+
+- **`SLACK_BOT_TOKEN`** - Your Slack bot token (starts with `xoxb-`)
+  - Required scopes: `chat:write`, `chat:write.public`
+  - [Create a Slack app and bot](https://api.slack.com/authentication/basics)
+
+### Repository Variables
+
+- **`SLACK_CHANNEL_ID`** - The Slack channel ID (e.g., `C01234ABCDE`)
+  - Find it: Right-click channel → View channel details → Copy ID
+
+## Workflow Inputs
+
+| Input | Required | Description | Example |
+|-------|----------|-------------|---------|
+| `team-slug` | Yes | GitHub team identifier | `engineering` |
+| `team-display-name` | Yes | Human-readable team name for Slack | `Engineering Team` |
+| `slack-channel-id` | Yes | Slack channel to notify | `C01234ABCDE` |
+
+## Multiple Teams Setup
+
+To notify different teams in different channels, create separate workflow files:
+
+**`.github/workflows/pr-review-backend.yaml`**
+```yaml
+name: Backend PR Reviews
+
+on:
+  pull_request:
+    types: [opened, review_requested, ready_for_review]
+
+jobs:
+  notify-backend:
+    uses: lowranceworks/common-workflows/.github/workflows/slack-pr-review.yaml@main
+    with:
+      team-slug: "backend"
+      team-display-name: "Backend Team"
+      slack-channel-id: ${{ vars.BACKEND_SLACK_CHANNEL }}
+    secrets:
+      slack_bot_token: ${{ secrets.SLACK_BOT_TOKEN }}
+    permissions:
+      pull-requests: read
 ```
-# TODO: finish this
+
+**`.github/workflows/pr-review-frontend.yaml`**
+```yaml
+name: Frontend PR Reviews
+
+on:
+  pull_request:
+    types: [opened, review_requested, ready_for_review]
+
+jobs:
+  notify-frontend:
+    uses: lowranceworks/common-workflows/.github/workflows/slack-pr-review.yaml@main
+    with:
+      team-slug: "frontend"
+      team-display-name: "Frontend Team"
+      slack-channel-id: ${{ vars.FRONTEND_SLACK_CHANNEL }}
+    secrets:
+      slack_bot_token: ${{ secrets.SLACK_BOT_TOKEN }}
+    permissions:
+      pull-requests: read
 ```
 
 ## Testing
 
-To test if your setup is working:
+1. Create a test pull request in your repository
+2. Request a review from the configured team
+3. Check your Slack channel for the notification
 
-1. Create a pull request in your repository
-2. Request a review from the team you've configured
-3. Check if the notification appears in the corresponding Slack channel
+The notification should include:
+- PR title and number
+- Author
+- Link to the PR
+- Team being requested for review
 
 ## Troubleshooting
 
-If notifications aren't working:
+**No notifications appearing?**
 
-1. Check the GitHub Actions run logs for errors
-2. Verify that your Slack bot has the proper permissions
-3. Ensure the team slug exactly matches what's in GitHub
-4. Confirm the Slack channel ID is correct
+1. **Check workflow run logs** - Go to Actions tab and review the run for errors
+2. **Verify Slack bot permissions** - Bot needs `chat:write` scope
+3. **Confirm channel access** - Bot must be added to the target channel (`/invite @YourBot`)
+4. **Check team slug** - Must exactly match your GitHub team identifier
+5. **Validate channel ID** - Ensure you're using the channel ID, not the channel name
+
+**Bot can't post to channel?**
+
+Add the bot to the channel: `/invite @YourBot` in the Slack channel
+
+**Wrong team being notified?**
+
+Verify the `team-slug` input matches your GitHub organization's team slug exactly (case-sensitiv
