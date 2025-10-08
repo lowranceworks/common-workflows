@@ -24,8 +24,7 @@ on:
         required: true
 
 jobs:
-  process-and-notify:
-    name: Check Team Review & Notify
+  send-slack-notification:
     runs-on: ubuntu-latest
     steps:
       - name: Determine team slug
