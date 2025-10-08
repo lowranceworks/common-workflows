@@ -52,9 +52,9 @@ Pull requests must be labeled with the type of change according to [semver.org](
 
 | Label | Version Change | Use For |
 |-------|----------------|---------|
-| `patch` | `v1.2.3` → `v1.2.4` | Bug fixes, small improvements, documentation |
-| `minor` | `v1.2.3` → `v1.3.0` | New features that don't break existing functionality |
-| `major` | `v1.2.3` → `v2.0.0` | Breaking changes, removed features, API changes |
+| `patch change` | `v1.2.3` → `v1.2.4` | Bug fixes, small improvements, documentation |
+| `minor change` | `v1.2.3` → `v1.3.0` | New features that don't break existing functionality |
+| `major change` | `v1.2.3` → `v2.0.0` | Breaking changes, removed features, API changes |
 
 ### Workflow Behavior
 
@@ -67,9 +67,9 @@ The workflow fails and posts a comment:
 ❌ **Error:** No version label found!
 
 This PR requires exactly one of the following labels:
-- `patch`: backwards-compatible bug fixes
-- `minor`: backwards-compatible features
-- `major`: breaking changes
+- `patch change`: backwards-compatible bug fixes
+- `minor change`: backwards-compatible features
+- `major change`: breaking changes
 
 Please add one label to specify the type of version change.
 ```
@@ -135,7 +135,7 @@ on:
 
 jobs:
   semver-check:
-    uses: lowranceworks/common-workflows/.github/workflows/semver-label-check.yaml@main
+    uses: lowranceworks/common-workflows/.github/workflows/semver-label.yaml@main
     permissions:
       issues: write
       pull-requests: write
@@ -186,14 +186,14 @@ jobs:
 Combine with the `create-tag-and-release` workflow for automatic versioning:
 
 ```yaml
-# .github/workflows/semver-check.yaml
-name: Semver Check
+# .github/workflows/semver-label.yaml
+name: Semver Label
 on:
   pull_request:
     types: [opened, labeled, unlabeled, synchronize]
 jobs:
   check-version:
-    uses: lowranceworks/common-workflows/.github/workflows/semver-label-check.yaml@main
+    uses: lowranceworks/common-workflows/.github/workflows/semver-label.yaml@main
     permissions:
       issues: write
       pull-requests: write
