@@ -6,7 +6,7 @@ jobs:
   build:
     needs: release
     if: success() && github.event.pull_request.merged == true
-    uses: ticketing-platform/common-workflows/.github/workflows/build-zip-upload-artifactory.yaml@main
+    uses: lowranceworks/common-workflows/.github/workflows/build-zip-upload-artifactory.yaml@main
     secrets:
       ARTIFACTORY_USERNAME: ${{ secrets.ARTIFACTORY_USERNAME }}
       ARTIFACTORY_PASSWORD: ${{ secrets.ARTIFACTORY_PASSWORD }}
