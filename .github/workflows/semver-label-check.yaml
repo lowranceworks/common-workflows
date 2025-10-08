@@ -2,7 +2,7 @@ name: Semver Label Check
 on: workflow_call
 
 jobs:
-  validate-version-labels:
+  check-semver-label:
     runs-on: ubuntu-latest
     permissions:
       issues: write
