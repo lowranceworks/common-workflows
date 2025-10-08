@@ -24,16 +24,27 @@ jobs:
               issue_number: context.issue.number
             });
 
-            const labels = response.data.map(label => label.name);
-            const versionLabels = ['patch', 'minor', 'major'];
+            const labels = response.data.map(label => label.name.toLowerCase());
+            
+            // Support both old format (patch, minor, major) and new format (patch change, minor change, major change)
+            const versionLabels = ['patch', 'minor', 'major', 'patch change', 'minor change', 'major change'];
             const foundVersionLabels = labels.filter(label => versionLabels.includes(label));
 
-            if (foundVersionLabels.length !== 1) {
-              core.setFailed('PR must have exactly one version label (patch/minor/major)');
+            if (foundVersionLabels.length === 0) {
+              // Default to patch if no label found
+              core.setOutput('version_type', 'patch');
+              console.log('No version label found, defaulting to patch');
               return;
             }
 
-            core.setOutput('version_type', foundVersionLabels[0]);
+            if (foundVersionLabels.length > 1) {
+              core.setFailed('PR must have exactly one version label (patch/minor/major or patch change/minor change/major change)');
+              return;
+            }
+
+            // Normalize the label to remove "change" suffix
+            const normalizedType = foundVersionLabels[0].replace(' change', '').trim();
+            core.setOutput('version_type', normalizedType);
 
   create-tag:
     name: Create Tag
@@ -56,8 +67,8 @@ jobs:
       - name: Get latest tag and increment version
         id: get_version
         run: |
-          # Get the latest tag or default to v0.0.0
-          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          # Get the latest tag or default to v0.1.0
+          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.1.0")
           echo "Latest tag: $latest_tag"
 
           # Extract version components
@@ -183,7 +194,7 @@ jobs:
           echo "" >> $GITHUB_OUTPUT
 
           # Handle first release case
-          if [ "$previous_tag" = "v0.0.0" ]; then
+          if [ "$previous_tag" = "v0.1.0" ]; then
             git log --pretty=format:"* %s (%h)" >> $GITHUB_OUTPUT
           else
             git log --pretty=format:"* %s (%h)" $previous_tag..$latest_tag >> $GITHUB_OUTPUT
