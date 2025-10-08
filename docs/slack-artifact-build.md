@@ -7,7 +7,7 @@ Automatically sends Slack notifications when artifact builds complete, with cust
 Add this to your build workflow:
 
 ```yaml
-name: Build and Notify
+name: Slack Artifact Build
 
 on:
   push:

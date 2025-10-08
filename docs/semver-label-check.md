@@ -14,7 +14,7 @@ on:
     types: [opened, labeled, unlabeled, synchronize]
 
 jobs:
-  check-version:
+  semver-label-check:
     uses: lowranceworks/common-workflows/.github/workflows/semver-label-check.yaml@main
     permissions:
       issues: write
