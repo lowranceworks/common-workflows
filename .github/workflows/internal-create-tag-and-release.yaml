@@ -6,7 +6,8 @@ on:
     branches: [main]
 
 jobs:
-  create-release:
+  check-semver-label:
+    name: Semantic Version Label Check
     if: github.event.pull_request.merged == true
     uses: lowranceworks/common-workflows/.github/workflows/create-tag-and-release.yaml@main
     permissions:
