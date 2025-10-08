@@ -1,4 +1,4 @@
-# Semver Label Check
+# Semver Label
 
 Validates that pull requests have semantic versioning labels before they can be merged, ensuring developers explicitly define the impact of their changes.
 
@@ -7,7 +7,7 @@ Validates that pull requests have semantic versioning labels before they can be 
 Add this workflow to `.github/workflows/semver-label-check.yaml`:
 
 ```yaml
-name: Semver Label Check
+name: Semver Label
 
 on:
   pull_request:
@@ -15,7 +15,7 @@ on:
 
 jobs:
   semver-label-check:
-    uses: lowranceworks/common-workflows/.github/workflows/semver-label-check.yaml@main
+    uses: lowranceworks/common-workflows/.github/workflows/semver-label.yaml@main
     permissions:
       issues: write
       pull-requests: write

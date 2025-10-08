@@ -1,8 +1,8 @@
-name: Semver Label Check
+name: Semver Label
 on: workflow_call
 
 jobs:
-  check-semver-label:
+  check-label:
     runs-on: ubuntu-latest
     permissions:
       issues: write
@@ -15,21 +15,21 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Check version labels
+      - name: Check labels
         id: check_labels
         uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             // Get current version
-            let currentVersion = '0.0.0';
+            let currentVersion = '0.1.0';
             try {
               const { stdout } = await exec.getExecOutput('git describe --tags --abbrev=0');
               if (stdout.trim()) {
                 currentVersion = stdout.trim().replace('v', '');
               }
             } catch (error) {
-              console.log('No tags found, using default version 0.0.0');
+              console.log('No tags found, using default version 0.1.0');
             }
 
             console.log(`Current version: ${currentVersion}`);
@@ -45,6 +45,11 @@ jobs:
             const foundVersionLabels = response.data
               .map(label => label.name)
               .filter(name => versionLabels.includes(name));
+
+            // Default to 'patch' if no label found
+            if (foundVersionLabels.length === 0) {
+              foundVersionLabels.push('patch');
+            }
 
             // Remove any existing version-related status comments
             const comments = await github.rest.issues.listComments({
@@ -81,28 +86,28 @@ jobs:
             let status = '### Version Label Status\n\n';
             let shouldFail = false;
 
-            if (foundVersionLabels.length === 0) {
-              status += '❌ **Error:** No version label found!\n\n' +
-                       'This PR requires exactly one of the following labels:\n' +
-                       '- `patch`: backwards-compatible bug fixes\n' +
-                       '- `minor`: backwards-compatible features\n' +
-                       '- `major`: breaking changes\n\n' +
-                       'Please add one label to specify the type of version change.';
-              shouldFail = true;
-            } else if (foundVersionLabels.length > 1) {
+            if (foundVersionLabels.length > 1) {
               status += '❌ **Error:** Multiple version labels detected!\n\n' +
                        `Found labels: ${foundVersionLabels.join(', ')}\n\n` +
                        'Please remove all but one version label. ' +
                        'Only one version type is allowed per PR.';
               shouldFail = true;
             } else {
-              const nextVersion = getNextVersion(foundVersionLabels[0]);
-              status += `✅ **Success:** Valid version label found: \`${foundVersionLabels[0]}\`\n\n` +
-                       'This PR will trigger a version increment when merged:\n' +
+              const labelType = foundVersionLabels[0];
+              const nextVersion = getNextVersion(labelType);
+              const isDefault = !response.data.some(label => versionLabels.includes(label.name));
+              
+              if (isDefault) {
+                status += `ℹ️ **Info:** No version label found, defaulting to \`patch\`\n\n`;
+              } else {
+                status += `✅ **Success:** Valid version label found: \`${labelType}\`\n\n`;
+              }
+              
+              status += 'This PR will trigger a version increment when merged:\n' +
                        `\`v${currentVersion}\` → \`v${nextVersion}\`\n\n`;
               
               // Add explanation of the change
-              switch(foundVersionLabels[0]) {
+              switch(labelType) {
                 case 'major':
                   status += '- **Major** version increment (breaking changes)';
                   break;
