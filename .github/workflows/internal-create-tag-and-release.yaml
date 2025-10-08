@@ -1,0 +1,16 @@
+name: Create Tag and Release
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+jobs:
+  create-release:
+    if: github.event.pull_request.merged == true
+    uses: lowranceworks/common-workflows/.github/workflows/create-tag-and-release.yaml@main
+    permissions:
+      contents: write
+      pull-requests: read
+      issues: read
+    secrets: inherit
