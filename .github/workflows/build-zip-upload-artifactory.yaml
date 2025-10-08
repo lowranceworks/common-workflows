@@ -27,6 +27,7 @@ on:
         required: true
 jobs:
   determine-version:
+    name: Determine Version
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.get-version.outputs.version }}
@@ -46,7 +47,8 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Using version: $VERSION"
 
-  build-and-push-zip-artifact:
+  build-zip-and-upload-to-artifactory:
+    name: Build Zip and Upload to Artifactory
     needs: determine-version
     runs-on: ubuntu-latest
     steps:

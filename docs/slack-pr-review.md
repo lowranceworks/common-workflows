@@ -7,7 +7,7 @@ Automatically sends Slack notifications when pull request reviews are needed.
 Add this workflow to your repository at `.github/workflows/pr-review-notifications.yaml`:
 
 ```yaml
-name: PR Review Notifications
+name: Slack Pull Request Review
 
 on:
   pull_request:

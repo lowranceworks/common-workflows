@@ -66,7 +66,8 @@ jobs:
           else
             echo "deployment to ${{ github.event.inputs.environment }} completed successfully!"
           fi
-  send-slack-notification:
+  notify-slack-channel:
+    name: Notify Slack channel
     needs: determine-deployment-status
     uses: lowranceworks/common-workflows/.github/workflows/slack-deployment.yaml@main
     with:

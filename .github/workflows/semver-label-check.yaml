@@ -2,7 +2,8 @@ name: Semver Label Check
 on: workflow_call
 
 jobs:
-  validate-version-labels:
+  check-semver-label:
+    name: Semantic Version Label Check
     runs-on: ubuntu-latest
     permissions:
       issues: write

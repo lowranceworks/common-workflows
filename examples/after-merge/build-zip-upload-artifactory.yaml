@@ -1,9 +1,10 @@
-name: Build and Publish Zip Archive
+name: Build Zip and Upload to Artifactory
 on:
   pull_request:
     types: [closed]
 jobs:
   build:
+    name: Build Zip and Upload to Artifactory
     needs: release
     if: success() && github.event.pull_request.merged == true
     uses: lowranceworks/common-workflows/.github/workflows/build-zip-upload-artifactory.yaml@main

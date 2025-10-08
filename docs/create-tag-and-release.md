@@ -14,7 +14,7 @@ on:
     types: [closed]
 
 jobs:
-  create-release:
+  create-tag-and-release:
     if: github.event.pull_request.merged == true
     uses: lowranceworks/common-workflows/.github/workflows/create-tag-and-release.yaml@main
     permissions:

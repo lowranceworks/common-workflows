@@ -14,7 +14,7 @@ on:
     branches: [main]
 
 jobs:
-  build-upload:
+  build-zip-and-upload-to-artifactory:
     uses: lowranceworks/common-workflows/.github/workflows/build-zip-upload-artifactory.yaml@main
     with:
       artifactory_url: "https://artifactory.example.com"

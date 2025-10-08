@@ -7,7 +7,7 @@ Automatically sends Slack notifications when deployments complete, with customiz
 Add this to your deployment workflow:
 
 ```yaml
-name: Production Deployment
+name: Slack Deployment
 
 on:
   release:
@@ -22,7 +22,7 @@ jobs:
         run: |
           # deployment commands
         
-  notify-deployment:
+  notify:
     needs: deploy
     if: always()
     uses: lowranceworks/common-workflows/.github/workflows/slack-deployment.yaml@main

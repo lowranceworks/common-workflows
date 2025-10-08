@@ -5,7 +5,8 @@ on:
     types: [opened, labeled, unlabeled, synchronize]
 
 jobs:
-  check-version:
+  create-tag-and-release:
+    name: Create Tag and Release
     uses: lowranceworks/common-workflows/.github/workflows/semver-label-check.yaml@main
     permissions:
       issues: write
