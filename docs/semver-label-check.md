@@ -4,7 +4,7 @@ Validates that pull requests have semantic versioning labels before they can be 
 
 ## Quick Start
 
-Add this workflow to `.github/workflows/semver-check.yaml`:
+Add this workflow to `.github/workflows/semver-label-check.yaml`:
 
 ```yaml
 name: Semver Label Check
