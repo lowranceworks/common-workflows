@@ -23,10 +23,6 @@ on:
         description: "The Slack channel ID to post to"
         required: true
 
-  # Allow direct triggering as well
-  pull_request:
-    types: [opened, review_requested, ready_for_review]
-
 jobs:
   process-and-notify:
     name: Check Team Review & Notify
