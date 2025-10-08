@@ -2,45 +2,97 @@
 
 A collection of reusable GitHub Actions workflows to standardize CI/CD practices across repositories.
 
-## Why Use Common Workflows?
+## Why?
 
-As part of any DevOps strategy, developers should look to formulate a best-practices policy for all their employees to follow internally. This set of best practices will ensure that everyone on your team is on the same page and working to the same standard. One of the key principles that any DevOps strategy should embrace is that of DRY coding. While it may sound like a tasty cocktail, [DevOps and DRY](https://dzone.com/articles/devops-and-dry) (Don't Repeat Yourself) embrace the ideals that you should only write quality code once, the first time.
+**Don't Repeat Yourself.** Write quality automation once, reuse it everywhere.
+
+This repository provides battle-tested workflows that handle common development tasks—from validating PRs to deploying releases. Instead of copying and maintaining the same workflow logic across dozens of repositories, reference these centralized workflows and keep your CI/CD pipeline consistent and maintainable.
+
+## Quick Start
+
+Reference a workflow in your `.github/workflows/` directory:
+
+```yaml
+name: Validate PR Labels
+on:
+  pull_request:
+    types: [opened, labeled, unlabeled]
+
+jobs:
+  check-semver-label:
+    uses: lowranceworks/common-workflows/.github/workflows/semver-label-check.yaml@main
+    with:
+      # Add any required inputs here
+```
 
 ## Available Workflows
 
-### Artifacts
+### Pull Request Workflows
+Run when PRs are opened or updated to validate and notify.
 
-- [zip-to-artifactory](docs/artifacts/zip-to-artifactory.md) - Builds and pushes a ZIP archive to Artifactory
+- **[semver-label-check](docs/validations/semver-label-check.md)** - Ensures PRs have semantic versioning labels (major/minor/patch)
+- **[slack-pull-request-review-needed](docs/notifications/slack-pull-request-review-needed.md)** - Notifies your team when reviews are needed
 
-### Notifications
+### Post-Merge Workflows
+Automatically run after code is merged to your main branch.
 
-- [slack-build-status](docs/notifications/slack-build-status.md) - Sends build status notifications to Slack
-- [slack-deployment-status](docs/notifications/slack-deployment-status.md) - Sends deployment status updates to Slack
-- [slack-pull-request-review-needed](docs/notifications/slack-pull-request-review-needed.md) - Notifies teams when PR review is needed
+- **[zip-to-artifactory](docs/artifacts/zip-to-artifactory.md)** - Builds and uploads ZIP artifacts to Artifactory
+- **[create-tag-and-release](docs/releases/create-tag-and-release.md)** - Automatically creates Git tags and GitHub releases
+- **[slack-build-status](docs/notifications/slack-build-status.md)** - Sends build status notifications to Slack
 
-### Releases
+### Deployment Workflows
+Run after releases are created to notify about deployments.
 
-- [create-tag-and-release](docs/releases/create-tag-and-release.md) - Creates a new Git tag and GitHub release
+- **[slack-deployment-status](docs/notifications/slack-deployment-status.md)** - Sends deployment notifications to Slack
 
-### Validations
+## Examples
 
-- [semver-label-check](docs/validations/semver-label-check.md) - Validates semantic versioning labels on PRs
+Check the [`examples/`](examples/) directory for ready-to-use workflow files organized by when they run:
 
-## How to Use
+- **`on-pull-request/`** - Validation and review notification workflows
+- **`after-merge/`** - Build, release, and notification workflows
+- **`after-release/`** - Deployment notification workflows
 
-To use a workflow in your repository, reference it in your workflow file:
+## Usage Tips
+
+### Pinning Versions
+
+For production use, pin to a specific version instead of `@main`:
 
 ```yaml
-name: Example Usage
-on:
-  pull_request:
-    types: [closed]
+uses: lowranceworks/common-workflows/.github/workflows/semver-label-check.yaml@v1.2.3
+```
+
+### Required Secrets
+
+Most workflows require repository secrets to be configured:
+
+- `ARTIFACTORY_URL` and `ARTIFACTORY_TOKEN` - For artifact uploads
+- `SLACK_WEBHOOK_URL` - For Slack notifications
+- GitHub token is automatically provided via `secrets.GITHUB_TOKEN`
+
+### Permissions
+
+Reusable workflows may need specific permissions. Always include the `permissions` block:
+
+```yaml
 jobs:
-  create-release:
-    uses: lowranceworks/common-workflows/.github/workflows/releases/create-tag-and-release.yaml@main
-    with:
-      # Required inputs for the workflow
+  my-job:
+    uses: lowranceworks/common-workflows/.github/workflows/create-tag-and-release.yaml@main
     permissions:
       contents: write
       pull-requests: read
 ```
+
+## Contributing
+
+Improvements and new workflows are welcome! Please:
+
+1. Follow the existing structure and naming conventions
+2. Add documentation in the `docs/` directory
+3. Include a working example in `examples/`
+4. Test thoroughly before submitting a PR
+
+## License
+
+[Add your license here]
