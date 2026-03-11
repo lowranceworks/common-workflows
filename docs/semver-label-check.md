@@ -4,7 +4,7 @@ Validates that pull requests have semantic versioning labels before they can be 
 
 ## Quick Start
 
-Add this workflow to `.github/workflows/semver-label.yaml`:
+Add this workflow to `.github/workflows/semver-label-check.yaml`:
 
 ```yaml
 name: Semver Label
@@ -15,7 +15,7 @@ on:
 
 jobs:
   semver-label:
-    uses: lowranceworks/common-workflows/.github/workflows/semver-label.yaml@main
+    uses: lowranceworks/common-workflows/.github/workflows/semver-label-check.yaml@main
     permissions:
       issues: write
       pull-requests: write
@@ -109,7 +109,7 @@ on:
 
 jobs:
   check-semver:
-    uses: lowranceworks/common-workflows/.github/workflows/semver-label.yaml@main
+    uses: lowranceworks/common-workflows/.github/workflows/semver-label-check.yaml@main
     permissions:
       issues: write
       pull-requests: write
@@ -133,14 +133,14 @@ Now PRs **cannot be merged** without a valid semver label.
 When combining with other checks that need `opened`/`synchronize` triggers, use a separate workflow file for the semver label check:
 
 ```yaml
-# .github/workflows/semver-label.yaml
+# .github/workflows/semver-label-check.yaml
 name: Semver Label
 on:
   pull_request:
     types: [labeled, unlabeled]
 jobs:
   check-semver:
-    uses: lowranceworks/common-workflows/.github/workflows/semver-label.yaml@main
+    uses: lowranceworks/common-workflows/.github/workflows/semver-label-check.yaml@main
     permissions:
       issues: write
       pull-requests: write
@@ -197,14 +197,14 @@ jobs:
 Combine with the `create-tag-and-release` workflow for automatic versioning:
 
 ```yaml
-# .github/workflows/semver-label.yaml
+# .github/workflows/semver-label-check.yaml
 name: Semver Label
 on:
   pull_request:
     types: [labeled, unlabeled]
 jobs:
   check-version:
-    uses: lowranceworks/common-workflows/.github/workflows/semver-label.yaml@main
+    uses: lowranceworks/common-workflows/.github/workflows/semver-label-check.yaml@main
     permissions:
       issues: write
       pull-requests: write
