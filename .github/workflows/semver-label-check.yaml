@@ -39,7 +39,7 @@ jobs:
               issue_number: context.issue.number
             });
 
-            const versionLabels = ['patch change', 'minor change', 'major change'];
+            const versionLabels = ['patch', 'minor', 'major'];
             const foundVersionLabels = response.data
               .map(label => label.name.toLowerCase())
               .filter(name => versionLabels.includes(name));
@@ -62,11 +62,11 @@ jobs:
             // Calculate next version based on label
             function getNextVersion(label) {
               switch(label) {
-                case 'major change':
+                case 'major':
                   return `${major + 1}.0.0`;
-                case 'minor change':
+                case 'minor':
                   return `${major}.${minor + 1}.0`;
-                case 'patch change':
+                case 'patch':
                   return `${major}.${minor}.${patch + 1}`;
                 default:
                   return currentVersion;
@@ -78,13 +78,12 @@ jobs:
             let shouldFail = false;
 
             if (foundVersionLabels.length === 0) {
-              status += '❌ **Error:** No version label found!\n\n' +
-                       'This PR requires exactly one of the following labels:\n' +
-                       '- `patch change`: backwards-compatible bug fixes\n' +
-                       '- `minor change`: backwards-compatible features\n' +
-                       '- `major change`: breaking changes\n\n' +
-                       'Please add one label to specify the type of version change.';
-              shouldFail = true;
+              status += '⏳ **Waiting:** No version label found yet.\n\n' +
+                       'This PR will default to a **patch** bump when merged.\n' +
+                       'To specify a different version bump, add one of these labels:\n' +
+                       '- `patch`: backwards-compatible bug fixes\n' +
+                       '- `minor`: backwards-compatible features\n' +
+                       '- `major`: breaking changes';
             } else if (foundVersionLabels.length > 1) {
               status += '❌ **Error:** Multiple version labels detected!\n\n' +
                        `Found labels: ${foundVersionLabels.map(l => `\`${l}\``).join(', ')}\n\n` +
@@ -100,13 +99,13 @@ jobs:
                        `\`v${currentVersion}\` → \`v${nextVersion}\`\n\n`;
 
               switch(labelType) {
-                case 'major change':
+                case 'major':
                   status += '- **Major** version increment (breaking changes)';
                   break;
-                case 'minor change':
+                case 'minor':
                   status += '- **Minor** version increment (new features, backwards compatible)';
                   break;
-                case 'patch change':
+                case 'patch':
                   status += '- **Patch** version increment (bug fixes, backwards compatible)';
                   break;
               }
