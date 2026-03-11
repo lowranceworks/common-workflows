@@ -2,7 +2,7 @@ name: Internal Semver Label Check
 
 on:
   pull_request:
-    types: [opened, labeled, unlabeled, synchronize]
+    types: [labeled, unlabeled]
 
 jobs:
   create-tag-and-release:
