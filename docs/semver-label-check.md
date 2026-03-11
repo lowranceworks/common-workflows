@@ -52,9 +52,9 @@ Pull requests must be labeled with the type of change according to [semver.org](
 
 | Label | Version Change | Use For |
 |-------|----------------|---------|
-| `patch change` | `v1.2.3` → `v1.2.4` | Bug fixes, small improvements, documentation |
-| `minor change` | `v1.2.3` → `v1.3.0` | New features that don't break existing functionality |
-| `major change` | `v1.2.3` → `v2.0.0` | Breaking changes, removed features, API changes |
+| `patch` | `v1.2.3` → `v1.2.4` | Bug fixes, small improvements, documentation |
+| `minor` | `v1.2.3` → `v1.3.0` | New features that don't break existing functionality |
+| `major` | `v1.2.3` → `v2.0.0` | Breaking changes, removed features, API changes |
 
 ### Workflow Behavior
 
@@ -70,10 +70,11 @@ The workflow runs, passes, and posts a reminder comment:
 ### Version Label Status
 ⏳ **Waiting:** No version label found yet.
 
-Please add one of the following labels before merging:
-- `patch change`: backwards-compatible bug fixes
-- `minor change`: backwards-compatible features
-- `major change`: breaking changes
+This PR will default to a **patch** bump when merged.
+To specify a different version bump, add one of these labels:
+- `patch`: backwards-compatible bug fixes
+- `minor`: backwards-compatible features
+- `major`: breaking changes
 ```
 
 **When a valid label is added:**
@@ -239,13 +240,13 @@ on:
 
 **Status check stuck on pending?**
 
-This is expected behavior. The check stays pending until a label is added to the PR. Add a semver label (`patch change`, `minor change`, or `major change`) to trigger the workflow.
+This is expected behavior. The check stays pending until a label is added to the PR. Add a semver label (`patch`, `minor`, or `major`) to trigger the workflow.
 
 **Labels not found?**
 
 Ensure you've created the required labels in your repository:
 - Go to Settings → Labels
-- Create `patch change`, `minor change`, and `major change` labels
+- Create `patch`, `minor`, and `major` labels
 - Color doesn't matter, but use distinct colors for easy identification
 
 **Status check not blocking merge?**
