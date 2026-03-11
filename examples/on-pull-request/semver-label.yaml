@@ -1,7 +1,7 @@
 name: Semver Label
 on:
   pull_request:
-    types: [opened, labeled, unlabeled, synchronize]
+    types: [labeled, unlabeled]
 jobs:
   check-semver-label:
     uses: lowranceworks/common-workflows/.github/workflows/semver-label.yaml@main

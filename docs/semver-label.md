@@ -11,7 +11,7 @@ name: Semver Label
 
 on:
   pull_request:
-    types: [opened, labeled, unlabeled, synchronize]
+    types: [labeled, unlabeled]
 
 jobs:
   semver-label:
@@ -44,7 +44,7 @@ permissions:
 
 ## How It Works
 
-This workflow acts as a **status check** that blocks PRs from merging until a semantic version label is added.
+This workflow only triggers on `labeled` and `unlabeled` PR events. Until a label is added, the status check remains **pending** -- blocking merge via branch protection without sending failure notifications. This prevents noisy failure emails when you first create a PR before adding labels.
 
 ### Semantic Versioning
 
@@ -58,9 +58,13 @@ Pull requests must be labeled with the type of change according to [semver.org](
 
 ### Workflow Behavior
 
-**When no label is present:**
+**Before any label is added:**
 
-The workflow fails and posts a comment:
+The status check stays **pending** and does not run. No failure email is sent.
+
+**When a non-version label is added (or a version label is removed):**
+
+The workflow runs and fails with a comment:
 
 ```
 ### Version Label Status
@@ -101,7 +105,7 @@ name: Validate PR Labels
 
 on:
   pull_request:
-    types: [opened, labeled, unlabeled, synchronize]
+    types: [labeled, unlabeled]
 
 jobs:
   check-semver:
@@ -126,28 +130,35 @@ Now PRs **cannot be merged** without a valid semver label.
 
 ### Combined with Other Checks
 
-```yaml
-name: PR Validation
+When combining with other checks that need `opened`/`synchronize` triggers, use a separate workflow file for the semver label check:
 
+```yaml
+# .github/workflows/semver-label.yaml
+name: Semver Label
 on:
   pull_request:
-    types: [opened, labeled, unlabeled, synchronize]
-
+    types: [labeled, unlabeled]
 jobs:
-  semver-check:
+  check-semver:
     uses: lowranceworks/common-workflows/.github/workflows/semver-label.yaml@main
     permissions:
       issues: write
       pull-requests: write
       contents: read
-  
+
+# .github/workflows/ci.yaml
+name: CI
+on:
+  pull_request:
+    types: [opened, synchronize]
+jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Run linter
         run: npm run lint
-  
+
   test:
     runs-on: ubuntu-latest
     steps:
@@ -190,7 +201,7 @@ Combine with the `create-tag-and-release` workflow for automatic versioning:
 name: Semver Label
 on:
   pull_request:
-    types: [opened, labeled, unlabeled, synchronize]
+    types: [labeled, unlabeled]
 jobs:
   check-version:
     uses: lowranceworks/common-workflows/.github/workflows/semver-label.yaml@main
@@ -221,18 +232,22 @@ This ensures:
 
 **Workflow not running?**
 
-Check that your workflow triggers include all necessary PR events:
+Check that your workflow triggers include the label PR events:
 ```yaml
 on:
   pull_request:
-    types: [opened, labeled, unlabeled, synchronize]
+    types: [labeled, unlabeled]
 ```
+
+**Status check stuck on pending?**
+
+This is expected behavior. The check stays pending until a label is added to the PR. Add a semver label (`patch change`, `minor change`, or `major change`) to trigger the workflow.
 
 **Labels not found?**
 
 Ensure you've created the required labels in your repository:
 - Go to Settings → Labels
-- Create `patch`, `minor`, and `major` labels
+- Create `patch change`, `minor change`, and `major change` labels
 - Color doesn't matter, but use distinct colors for easy identification
 
 **Status check not blocking merge?**
