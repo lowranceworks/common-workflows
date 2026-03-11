@@ -4,7 +4,7 @@ on:
     types: [labeled, unlabeled]
 jobs:
   check-semver-label:
-    uses: lowranceworks/common-workflows/.github/workflows/semver-label.yaml@main
+    uses: lowranceworks/common-workflows/.github/workflows/semver-label-check.yaml@main
     permissions:
       issues: write
       pull-requests: write
