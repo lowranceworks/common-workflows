@@ -78,13 +78,11 @@ jobs:
             let shouldFail = false;
 
             if (foundVersionLabels.length === 0) {
-              status += '❌ **Error:** No version label found!\n\n' +
-                       'This PR requires exactly one of the following labels:\n' +
+              status += '⏳ **Waiting:** No version label found yet.\n\n' +
+                       'Please add one of the following labels before merging:\n' +
                        '- `patch change`: backwards-compatible bug fixes\n' +
                        '- `minor change`: backwards-compatible features\n' +
-                       '- `major change`: breaking changes\n\n' +
-                       'Please add one label to specify the type of version change.';
-              shouldFail = true;
+                       '- `major change`: breaking changes';
             } else if (foundVersionLabels.length > 1) {
               status += '❌ **Error:** Multiple version labels detected!\n\n' +
                        `Found labels: ${foundVersionLabels.map(l => `\`${l}\``).join(', ')}\n\n` +

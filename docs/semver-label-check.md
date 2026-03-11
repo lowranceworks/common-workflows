@@ -64,18 +64,16 @@ The status check stays **pending** and does not run. No failure email is sent.
 
 **When a non-version label is added (or a version label is removed):**
 
-The workflow runs and fails with a comment:
+The workflow runs, passes, and posts a reminder comment:
 
 ```
 ### Version Label Status
-❌ **Error:** No version label found!
+⏳ **Waiting:** No version label found yet.
 
-This PR requires exactly one of the following labels:
+Please add one of the following labels before merging:
 - `patch change`: backwards-compatible bug fixes
 - `minor change`: backwards-compatible features
 - `major change`: breaking changes
-
-Please add one label to specify the type of version change.
 ```
 
 **When a valid label is added:**
