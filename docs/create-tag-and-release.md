@@ -58,6 +58,8 @@ Your repository must have these labels (same as semver-label-check):
 - `minor` - New features (backwards-compatible)
 - `major` - Breaking changes
 
+`patch change`/`minor change`/`major change` and `patch release`/`minor release`/`major release` are accepted as aliases. Exactly one version label (canonical or alias) is required; unrelated labels are ignored. Missing or multiple version labels, including an alias alongside its canonical name, fail validation before any tag or release is created. There is no default patch bump.
+
 ## Recommended Setup
 
 **Use with semver-label-check for best results:**
@@ -279,7 +281,7 @@ jobs:
 **No release created after merge?**
 
 1. Verify the PR was merged (not closed without merging)
-2. Check that the PR has a valid semver label (`patch`, `minor`, or `major`)
+2. Check that the PR has exactly one semver label (`patch`, `minor`, `major`, or a corresponding `* change`/`* release` alias)
 3. Ensure the workflow has `contents: write` permission
 4. Review the Actions logs for specific errors
 
@@ -289,7 +291,7 @@ The workflow calculates versions based on:
 - The latest Git tag in the repository
 - The semver label on the merged PR
 
-If no tags exist, it starts at `v1.0.0` with a `minor` label, or `v0.1.0` with a `patch` label.
+If no tag is reachable from the merged commit, the workflow uses `v0.1.0` as its baseline: `minor` creates `v0.2.0`, and `patch` creates `v0.1.1`. It chooses the baseline with `git describe --tags --abbrev=0`, which can differ from the pre-merge check's tag API result when tags are not on the current history.
 
 **Release created but can't push to protected branch?**
 
