@@ -32,6 +32,8 @@ Create these labels in your repository (Settings → Labels):
 - **`minor`** - Backwards-compatible new features
 - **`major`** - Breaking changes
 
+`patch change`/`minor change`/`major change` and `patch release`/`minor release`/`major release` are also accepted as aliases. Exactly one version label is required (including across aliases); other labels are ignored. Missing or multiple version labels fail the check and block a release.
+
 ### Required Permissions
 
 The workflow needs these permissions to validate labels and post comments:
@@ -44,7 +46,7 @@ permissions:
 
 ## How It Works
 
-This workflow only triggers on `labeled` and `unlabeled` PR events. Until a label is added, the status check remains **pending** -- blocking merge via branch protection without sending failure notifications. This prevents noisy failure emails when you first create a PR before adding labels.
+The example above runs on `labeled` and `unlabeled` PR events. To validate an unlabeled PR immediately, also trigger on `opened` and `synchronize` (as in the dotfiles caller). When the check runs without a version label, it fails. Require the check in branch protection to block merges.
 
 ### Semantic Versioning
 
@@ -58,23 +60,15 @@ Pull requests must be labeled with the type of change according to [semver.org](
 
 ### Workflow Behavior
 
-**Before any label is added:**
+**When no version label is present (including when only non-version labels are added):**
 
-The status check stays **pending** and does not run. No failure email is sent.
-
-**When a non-version label is added (or a version label is removed):**
-
-The workflow runs, passes, and posts a reminder comment:
+The workflow fails and posts a reminder comment:
 
 ```
 ### Version Label Status
-⏳ **Waiting:** No version label found yet.
+❌ **Error:** No version label found.
 
-This PR will default to a **patch** bump when merged.
-To specify a different version bump, add one of these labels:
-- `patch`: backwards-compatible bug fixes
-- `minor`: backwards-compatible features
-- `major`: breaking changes
+Add exactly one version label before merging: `patch`, `minor`, or `major` (`* change` and `* release` aliases also work).
 ```
 
 **When a valid label is added:**
@@ -240,7 +234,7 @@ on:
 
 **Status check stuck on pending?**
 
-This is expected behavior. The check stays pending until a label is added to the PR. Add a semver label (`patch`, `minor`, or `major`) to trigger the workflow.
+If the caller only triggers on `labeled` and `unlabeled`, the check may not run until a label event. Add `opened` and `synchronize` triggers to check unlabeled PRs immediately, then add a version label to make the failing check pass.
 
 **Labels not found?**
 

@@ -39,7 +39,8 @@ jobs:
               issue_number: context.issue.number
             });
 
-            const versionLabels = ['patch', 'minor', 'major'];
+            // One version label required. Bare names are canonical; "* change" and "* release" are aliases.
+            const versionLabels = ['patch', 'minor', 'major', 'patch change', 'minor change', 'major change', 'patch release', 'minor release', 'major release'];
             const foundVersionLabels = response.data
               .map(label => label.name.toLowerCase())
               .filter(name => versionLabels.includes(name));
@@ -78,12 +79,10 @@ jobs:
             let shouldFail = false;
 
             if (foundVersionLabels.length === 0) {
-              status += '⏳ **Waiting:** No version label found yet.\n\n' +
-                       'This PR will default to a **patch** bump when merged.\n' +
-                       'To specify a different version bump, add one of these labels:\n' +
-                       '- `patch`: backwards-compatible bug fixes\n' +
-                       '- `minor`: backwards-compatible features\n' +
-                       '- `major`: breaking changes';
+              status += '❌ **Error:** No version label found.\n\n' +
+                       'Add exactly one version label before merging: `patch`, `minor`, or `major` ' +
+                       '(`* change` and `* release` aliases also work).';
+              shouldFail = true;
             } else if (foundVersionLabels.length > 1) {
               status += '❌ **Error:** Multiple version labels detected!\n\n' +
                        `Found labels: ${foundVersionLabels.map(l => `\`${l}\``).join(', ')}\n\n` +
@@ -91,10 +90,10 @@ jobs:
                        'Only one version type is allowed per PR.';
               shouldFail = true;
             } else {
-              const labelType = foundVersionLabels[0];
+              const labelType = foundVersionLabels[0].replace(/ (change|release)$/, '');
               const nextVersion = getNextVersion(labelType);
 
-              status += `✅ **Success:** Valid version label found: \`${labelType}\`\n\n`;
+              status += `✅ **Success:** Valid version label found: \`${foundVersionLabels[0]}\`\n\n`;
               status += 'This PR will trigger a version increment when merged:\n' +
                        `\`v${currentVersion}\` → \`v${nextVersion}\`\n\n`;
 

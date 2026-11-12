@@ -26,22 +26,21 @@ jobs:
 
             const labels = response.data.map(label => label.name.toLowerCase());
             
-            const versionLabels = ['patch', 'minor', 'major'];
+            // Match the PR check: bare names are canonical; "* change" and "* release" are aliases.
+            const versionLabels = ['patch', 'minor', 'major', 'patch change', 'minor change', 'major change', 'patch release', 'minor release', 'major release'];
             const foundVersionLabels = labels.filter(label => versionLabels.includes(label));
 
             if (foundVersionLabels.length === 0) {
-              // Default to patch if no label found
-              core.setOutput('version_type', 'patch');
-              console.log('No version label found, defaulting to patch');
+              core.setFailed('PR must have exactly one version label (patch/minor/major or * change/* release alias); found none');
               return;
             }
 
             if (foundVersionLabels.length > 1) {
-              core.setFailed('PR must have exactly one version label (patch/minor/major)');
+              core.setFailed('PR must have exactly one version label (patch/minor/major or * change/* release alias); found multiple');
               return;
             }
 
-            core.setOutput('version_type', foundVersionLabels[0]);
+            core.setOutput('version_type', foundVersionLabels[0].replace(/ (change|release)$/, ''));
 
   create-tag:
     name: Create Tag
